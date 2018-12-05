@@ -100,6 +100,9 @@ As for me, I could also combine the `STUDY`-`TEST`-`EVALUATE` process loop I've 
  
 ## Mockingbird learning
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> e4b7fbe... podcasts/developer-tea/developer-tea-593-5-learning-anti-pattern.md updated from https://stackedit.io/
 This is my favorite solely because of the term alone although I would give another name like **parroting**.
 
 Another type of learning coined by the host, I think. Just like before, I don't know the formal terms of any of the previous learning practices that he talked about
@@ -119,6 +122,7 @@ Basically, this anti-pattern describes how we learn without pathways or a roadma
 We have to understand the whys and the hows of the concepts that we are studying. In the beginner phase, it may not be now but certainly in the future, we should. We have to understand how does a subject relates to another subject thus the why the second anti-pattern is formed. It makes us think about the other concepts in relation to the studied concept.
 
 So, what's my take for this? **Focus on the road to mastery and how does it make an impact on your life.** Whether it's for hobby, for fun, for career, or anything that doesn't make learning a useless time-wasting chore just because.
+<<<<<<< HEAD
 =======
 - This is my favorite solely because of the term alone although I would give another name like **parroting**.
 - Another type of learning coined by the host, I think. Just like before, I don't know the formal terms of any of the previous learning practices that he talked about
@@ -130,8 +134,10 @@ So, what's my take for this? **Focus on the road to mastery and how does it make
 - Basically, this anti-pattern describes how we learn without pathways or a roadmap and just speaking about everything what we have heard, watched, or seen. As described, it could lead to a mess, a false sense of competency. 
 - We have to understand the whys and the hows of the concepts that we are studying. In the beginner phase, it may not be now but certainly in the future, we should. We have to understand how does a subject relates to another subject thus the why the second anti-pattern is formed. It makes us think about the other concepts in relation to the studied concept.
 - So, what's my take for this? **Focus on the road to mastery and how does it make an impact on your life.** Whether it's for hobby, for fun, for career, or anything that doesn't make learning a useless time-wasting chore just because.
+=======
+>>>>>>> e4b7fbe... podcasts/developer-tea/developer-tea-593-5-learning-anti-pattern.md updated from https://stackedit.io/
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTMzMzgwMzkxOSwxMzk4NjkyMzAzLC0xMj
+eyJoaXN0b3J5IjpbLTM3MjQ1MTU4NCwxMzk4NjkyMzAzLC0xMj
 U1NTc0NDAwLDIwMDQ0NDE0NjEsLTE3NTE2ODA0NzAsMTEyOTk3
 NjE0MywtMjA3NDEwMjA2NF19
 -->
