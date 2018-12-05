@@ -2,7 +2,7 @@
 # Personal main takeaways on [Developer's Tea #593 - 5 Learning Anti-Patterns](https://developertea.simplecast.fm/aeb7c2cf)
 
 ## Staying up late and giving every available time to active learning
-- Most of us are amazed by the idea of someone who is very dedicated to learning, giving every time to consuming knowledge resources: watching a knowledge video on lunch break, reading a textbook after work, and just searching everything as long as they are teaching something to them
+Most of us are amazed by the idea of someone who is very dedicated to learning, giving every time to consuming knowledge resources: watching a knowledge video on lunch break, reading a textbook after work, and just searching everything as long as they are teaching something to them
 	- However, **giving every available to active learning** is similar (or the same) to cramming. We are packing our brain with multitudes of information all at once when the brain could only take so little of it to be able to take a grasp of it in any given amount of time
 - **Take a break every once in a while** — with this, you are already practicing *spaced repetition* which is I believe to be a key habit when wanting to learn a new subject matter, concept, or information
 - **Treat your brain as it is**: a physical matter just like how computers is an assembly of components: transistors, capacitors, wires, and electricity having to go through physical processes to create and interpret information
@@ -69,7 +69,7 @@
 - We have to understand the whys and the hows of the concepts that we are studying. In the beginner phase, it may not be now but certainly in the future, we should. We have to understand how does a subject relates to another subject thus the why the second anti-pattern is formed. It makes us think about the other concepts in relation to the studied concept.
 - So, what's my take for this? **Focus on the road to mastery and how does it make an impact on your life.** Whether it's for hobby, for fun, for career, or anything that doesn't make learning a useless time-wasting chore just because.
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTM5ODY5MjMwMywtMTI1NTU3NDQwMCwyMD
-A0NDQxNDYxLC0xNzUxNjgwNDcwLDExMjk5NzYxNDMsLTIwNzQx
-MDIwNjRdfQ==
+eyJoaXN0b3J5IjpbLTg2MDMyMzA3NiwxMzk4NjkyMzAzLC0xMj
+U1NTc0NDAwLDIwMDQ0NDE0NjEsLTE3NTE2ODA0NzAsMTEyOTk3
+NjE0MywtMjA3NDEwMjA2NF19
 -->
