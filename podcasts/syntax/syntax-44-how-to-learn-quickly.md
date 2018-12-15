@@ -143,3 +143,6 @@ Of course, you shouldn't just be content of the fruits of labor of your study. W
 For example, you should put your side projects out on GitHub as it is one (really, arguably the most popular) of the most popular repo hosting site out there. For smaller projects, you could even put it out as a repo that shows as a demo [just like how this guy did](https://www.slightedgecoder.com/2017/09/05/throwaway-code-dont-recycle-throw-away/). You could also put it in one repo or a collection of repo, categorizing your smaller projects. There's quite a lot of ways on how you could show your efforts out there.
 
 **If you're quite afraid of being judged, get over it.** I can't just say it and it'll make your avoidance go away like magic but I'm going to say it: get over it. It is inevitable in a way but you could also get the positive side of things. Besides, most of the time, the worst-case scenario in here is that someone will correct you and that is on itself, a learning opportunity.
+
+## Practice
+Of course, practice makes permanent. 🙂
