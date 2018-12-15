@@ -4,12 +4,8 @@
 Most of us are amazed by the idea of someone who is very dedicated to learning, giving every time to consuming knowledge resources: watching a knowledge video on lunch break, reading a textbook after work, and just searching everything as long as they are teaching something to them
 
 However, **giving every available to active learning** is similar (or the same) to cramming. We are packing our brain with multitudes of information all at once when the brain could only take so little of it to be able to take a grasp of it in any given amount of time
-<<<<<<< HEAD
 
 **Take a break every once in a while** — with this, you are already practicing *spaced repetition* which is I believe to be a key habit when wanting to learn a new subject matter, concept, or information
-=======
-- **Take a break every once in a while** — with this, you are already practicing *spaced repetition* which is I believe to be a key habit when wanting to learn a new subject matter, concept, or information
->>>>>>> 8e501cc... podcasts/developer-tea/developer-tea-593-5-learning-anti-pattern.md updated from https://stackedit.io/
 
 **Treat your brain as it is**: a physical matter just like how computers is an assembly of components: transistors, capacitors, wires, and electricity having to go through physical processes to create and interpret information
 
@@ -99,10 +95,6 @@ At this point, **you could do an efficient study schedule that promotes spaced r
 As for me, I could also combine the `STUDY`-`TEST`-`EVALUATE` process loop I've made into those procedures: a weekly schedule that encourages exploring different but related subjects that are being studied in an efficient amount of time while having some time free time for other things
  
 ## Mockingbird learning
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> e4b7fbe... podcasts/developer-tea/developer-tea-593-5-learning-anti-pattern.md updated from https://stackedit.io/
 This is my favorite solely because of the term alone although I would give another name like **parroting**.
 
 Another type of learning coined by the host, I think. Just like before, I don't know the formal terms of any of the previous learning practices that he talked about
@@ -122,23 +114,9 @@ Basically, this anti-pattern describes how we learn without pathways or a roadma
 We have to understand the whys and the hows of the concepts that we are studying. In the beginner phase, it may not be now but certainly in the future, we should. We have to understand how does a subject relates to another subject thus the why the second anti-pattern is formed. It makes us think about the other concepts in relation to the studied concept.
 
 So, what's my take for this? **Focus on the road to mastery and how does it make an impact on your life.** Whether it's for hobby, for fun, for career, or anything that doesn't make learning a useless time-wasting chore just because.
-<<<<<<< HEAD
-=======
-- This is my favorite solely because of the term alone although I would give another name like **parroting**.
-- Another type of learning coined by the host, I think. Just like before, I don't know the formal terms of any of the previous learning practices that he talked about
-- **Anyways, I understood that this is described as learning without direction**
-	- As Cutrell said, it is like a mockingbird whose able to imitate a human voice singing doesn't exactly mean that the mockingbird understood music.
-	- Or as I would describe it, just speaking everything that we just heard. You know, just like a parrot. 🐦
-- Now most of the stuff here are mixed with personal opinions so beware.
-- Personally, I think this relates to the other anti-patterns in a large way. Thus, I think that this anti-pattern is the most important to keep in mind and the reason is simple. It makes you think as to why you are learning things.
-- Basically, this anti-pattern describes how we learn without pathways or a roadmap and just speaking about everything what we have heard, watched, or seen. As described, it could lead to a mess, a false sense of competency. 
-- We have to understand the whys and the hows of the concepts that we are studying. In the beginner phase, it may not be now but certainly in the future, we should. We have to understand how does a subject relates to another subject thus the why the second anti-pattern is formed. It makes us think about the other concepts in relation to the studied concept.
-- So, what's my take for this? **Focus on the road to mastery and how does it make an impact on your life.** Whether it's for hobby, for fun, for career, or anything that doesn't make learning a useless time-wasting chore just because.
-=======
->>>>>>> e4b7fbe... podcasts/developer-tea/developer-tea-593-5-learning-anti-pattern.md updated from https://stackedit.io/
+
 <!--stackedit_data:
 eyJoaXN0b3J5IjpbLTM3MjQ1MTU4NCwxMzk4NjkyMzAzLC0xMj
 U1NTc0NDAwLDIwMDQ0NDE0NjEsLTE3NTE2ODA0NzAsMTEyOTk3
 NjE0MywtMjA3NDEwMjA2NF19
 -->
->>>>>>> 8e501cc... podcasts/developer-tea/developer-tea-593-5-learning-anti-pattern.md updated from https://stackedit.io/
