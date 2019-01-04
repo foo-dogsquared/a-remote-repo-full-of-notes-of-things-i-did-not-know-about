@@ -73,12 +73,12 @@ An example of that would be my past self trying to master something and I would 
 As I've recently learned and realized, you don't need to fully 100% understand everything when you move on to the next concept. However, I think there's should be a difference between rushing through the studies and mastering the underlying concepts when needed. There are is a lot of ways on how to study, after all.
 
 To get my point (read: personal opinion) across, I'll be speaking out what is my supposed experimental study workflow.
-	1. Try to understand the concept
-	2. Test that out with problems that are applicable whether be it practice problems, prototyping something, or an experiment of your hypothesis
-	3. Look at the result then evaluate whether or not you've understood enough or your process is efficient enough
-	4. If you think if it needs an improvement, redo the steps
-	5. Else, move on to the next concept (or take a break, first)
-	6. Back to step 1 with the next concept in mind 
+1. Try to understand the concept
+2. Test that out with problems that are applicable whether be it practice problems, prototyping something, or an experiment of your hypothesis
+3. Look at the result then evaluate whether or not you've understood enough or your process is efficient enough
+4. If you think if it needs an improvement, redo the steps
+5. Else, move on to the next concept (or take a break, first)
+6. Back to step 1 with the next concept in mind 
 
 As said before, this is all experimental and I have another study workflow in proposal. ~~Ah, December is the perfect time for this. 🙃~~
 
