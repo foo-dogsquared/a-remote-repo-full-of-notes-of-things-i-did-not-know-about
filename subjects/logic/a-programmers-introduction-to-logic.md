@@ -131,7 +131,7 @@ As previously said, in mathematics, we usually represent numbers in formulas wit
 
 $$ a^2 + b^2 = c^2 $$
 
-*The Pythagorean theorem*{: .caption}
+<i style="display:block;margin:0 auto;">The Pythagorean theorem</i>
 
 We could plug any values and solve for the unknown, if possible.
 

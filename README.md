@@ -11,6 +11,8 @@ To make this README.md not so useless, I'll link you to [my freebies resource li
 
 Speaking of resource list, here's one of the most (if not, the most) [awesome](https://github.com/sindresorhus/awesome) resource list. It's a resource list... of resource list. "RESOURCE LIST"-CEPTION!
 
+Also, one thing to note here, is that a lot of the markdown files have images inside of them encoded in `base64` so that each markdown file is complete on its own without the need for other servers. Since [GitHub-flavored markdown doesn't support base64 images](https://github.com/github/markup/issues/270) so you have to view the markdown files somewhere. 
+
 ## Frequently Asked Questions (FAQ)
 ### What?
 Yeah... I have that in mind too...
