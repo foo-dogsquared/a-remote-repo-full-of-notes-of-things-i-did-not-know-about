@@ -1,0 +1,24 @@
+caption: {{$:/themes/telmiger/navigator/icon}} About Navigator
+created: 20190208064547584
+creator: Thomas Elmiger
+description: Go to Navigator theme
+modified: 20190303095444038
+modifier: Thomas Elmiger
+tags: $:/tags/PageControls
+title: $:/themes/telmiger/navigator/ui/Buttons/about
+type: text/vnd.tiddlywiki
+
+\define control-panel-button(class)
+<$button to="$:/themes/telmiger/navigator" tooltip={{!!description}} aria-label={{!!description}} class="""$(tv-config-toolbar-class)$ $class$""">
+<$list filter="[<tv-config-toolbar-icons>prefix[yes]]">
+{{$:/themes/telmiger/navigator/icon}}
+</$list>
+<$list filter="[<tv-config-toolbar-text>prefix[yes]]">
+<span class="tc-btn-text">About Navigator</span>
+</$list>
+</$button>
+\end
+
+<$list filter="[list[$:/StoryList]] +[field:title[$:/themes/telmiger/navigator]]" emptyMessage=<<control-panel-button>>>
+<<control-panel-button "tc-selected">>
+</$list>

@@ -1,0 +1,31 @@
+caption: {{$:/themes/telmiger/navigator/icons/menu-open}} Sidebar Navigation
+created: 20190202080028453
+creator: Thomas Elmiger
+description: Open/close sidebar menu
+modified: 20190225212300875
+modifier: Thomas Elmiger
+tags: $:/tags/PageControls
+title: $:/themes/telmiger/navigator/ui/Buttons/menu
+type: text/vnd.tiddlywiki
+
+<$reveal state="$:/state/sidebar" type="nomatch" text="no">
+<$button set="$:/state/sidebar" setTo="no" tooltip={{$:/language/Buttons/HideSideBar/Hint}} aria-label={{$:/language/Buttons/HideSideBar/Caption}} class="tc-btn-invisible te-menu-close tc-selected">
+<div class="te-close-sidebar-btn"></div>
+<$list filter="[<tv-config-toolbar-icons>prefix[yes]]">
+{{$:/themes/telmiger/navigator/icons/menu-close}}
+</$list>
+<$list filter="[<tv-config-toolbar-text>prefix[yes]]">
+<span class="tc-btn-text">{{$:/language/Buttons/HideSideBar/Caption}}</span>
+</$list>
+</$button>
+</$reveal>
+<$reveal state="$:/state/sidebar" type="match" text="no">
+<$button set="$:/state/sidebar" setTo="yes" tooltip={{$:/language/Buttons/ShowSideBar/Hint}} aria-label={{$:/language/Buttons/ShowSideBar/Caption}} class="tc-btn-invisible te-menu-open">
+<$list filter="[<tv-config-toolbar-icons>prefix[yes]]">
+{{$:/themes/telmiger/navigator/icons/menu-open}}
+</$list>
+<$list filter="[<tv-config-toolbar-text>prefix[yes]]">
+<span class="tc-btn-text">{{$:/language/Buttons/ShowSideBar/Caption}}</span>
+</$list>
+</$button>
+</$reveal>

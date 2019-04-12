@@ -1,0 +1,9 @@
+[data-tags*="zero-experienced"], [data-tags*="beginner"],
+[data-tags*="intermediate"], [data-tags*="advanced"] {
+  border-left: 8px solid;
+}
+
+[data-tags*="zero-experienced"] {border-left-color: green;}
+[data-tags*="beginner"] {border-left-color: yellow;}
+[data-tags*="intermediate"] {border-left-color: blue;}
+[data-tags*="advanced"] {border-left-color: red;}
