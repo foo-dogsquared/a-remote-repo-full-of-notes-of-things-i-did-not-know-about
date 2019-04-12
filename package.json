@@ -1,0 +1,16 @@
+{
+  "name": "personal-notes",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "develop": "tiddlywiki ./ --listen",
+    "build": "tiddlywiki ./ --build index"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "tiddlywiki": "5.1.19"
+  }
+}
