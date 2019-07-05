@@ -1,1 +1,0 @@
-# Deductive and Inductive Arguments
