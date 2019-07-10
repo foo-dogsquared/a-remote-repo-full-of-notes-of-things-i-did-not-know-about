@@ -1,0 +1,45 @@
+\ProvidesPackage{docs-admonition-blocks}[2019/07/08]
+
+% tcolorbox package doesn't accept HSB color model so we'll set
+% an option for recognizing RGB values and converting it back to HSB instead
+\RequirePackage[utf8]{inputenc}
+\RequirePackage{fontawesome}
+\RequirePackage{chngcntr}
+\RequirePackage[rgb]{xcolor}
+\RequirePackage[most]{tcolorbox}
+
+
+% Setting the hue from Hsb color model to have a max value of 360
+\def\rangeHsb{360}
+
+% Document color scheme
+\definecolor{doc-note-color}[rgb]{Hsb}{196, 0.74, 0.90}
+\definecolor{doc-info-color}[rgb]{Hsb}{198, 0.96, 0.30}
+\definecolor{doc-theorem-color}[rgb]{Hsb}{79, 0.98, 0.63}
+\definecolor{doc-warning-color}[rgb]{Hsb}{48, 0.94, 0.86}
+\definecolor{doc-critical-color}[rgb]{Hsb}{2, 0.80, 0.99}
+
+% This packages provides new environment for the following 
+% common admonition?callout blocks:
+% - note
+\newtcolorbox{-doc-note}{breakable, colframe=doc-note-color, title=Note, before title={\faPencil\quad}}
+
+% - information
+\newtcolorbox{-doc-info}{colframe=doc-info-color, title=Information, before title={\faInfoCircle\quad}}
+
+% - theorem and corollary
+\newcounter{doctheoremcount}[chapter]
+\counterwithin{doctheoremcount}{chapter}
+
+\newtcbtheorem[use counter*=doctheoremcount]{-doc-theorem}{Theorem}{colframe=doc-theorem-color, theorem style=plain, oversize, coltitle=black, fonttitle=\bfseries}{th}
+\newtheorem{-doc-corollary}{Corollary}[doctheoremcount]
+
+% - definition
+\newtheorem{-doc-definition}{Definition}[chapter]
+
+% - warning
+\newtcolorbox{-doc-warning}{colframe=doc-warning-color, title=Warning, before title={\faWarning\quad}}
+
+% - critical information
+\newtcolorbox{-doc-critical}{colframe=doc-critical-color, title=Critical, before title={\faExclamation\quad}}
+\endinput
