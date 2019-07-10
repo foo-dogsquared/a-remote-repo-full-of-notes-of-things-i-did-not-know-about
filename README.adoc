@@ -1,0 +1,181 @@
+= a-remote-repo-full-of-notes-of-things-i-did-not-know-about
+
+...also known as foo-dogsquared's `personal-lectures`
+
+A repo containing a collection of my study notes about various stuff whether
+be programming, mathematics, electronics, engineering, and anything that is
+worth detailing over.
+
+Think of this repo as an open-sourced online
+http://calnewport.com/blog/2015/11/25/the-feynman-notebook-method/[Feynman notebook] 
+of someone... or something.
+
+This open study notebook uses LaTeX as the files to be used for my notes
+so you'll have to install a LaTeX distribution to be able to compile it and view 
+the results. I might consider using a CI server to automate that (perhaps) for 
+my (and everyone else's) convenience.
+
+== Details, details...
+
+Here's a list of programs you should have installed on your machine if you want to 
+use this:
+
+- https://inkscape.org/[Inkscape] 
+-- Recommend to always use latest version.
+
+- https://python.org/[Python]
+-- Specifically Python 3.5 and above.
+
+- a https://latex-project.org/[LaTeX] distribution 
+-- Personally recommend installing https://tug.org/texlive/[TeX Live] since 
+I find it easy to install across various platforms especially with 
+https://tug.org/texlive/acquire-iso.html[an ISO image].
+
+- a text editor
+-- Obviously. Just for reference, I use https://www.vim.org/[Vim] with 
+https://github.com/lervag/vimtex[Vimtex] and 
+https://github.com/SirVer/ultisnips[UltiSnips] inspired by
+https://castel.dev/post/lecture-notes-1/[this post by *Gilles Castel*].
+
+Here are the top level directories you give the most amount of attention:
+
+=== `notes/`
+
+Where the notes is stored, obviously. Inside of this directory are subdirectories of 
+subjects in https://en.wikipedia.org/wiki/Letter_case#Special_case_styles[kebab case]. 
+Within those subdirectories are where my LaTeX notes
+are stored. 
+
+Each subdirectory should have also have the following:
+
+- A directory named `graphics/` where all of the images to be used 
+within the files are stored. 
+- A `.main.tex` file where it serves as the main file under that subdirectory 
+and should result in a all-in-one study book for `<SUBJECT NAME>` with each 
+subfile included as a part when compiled.
+
+You can add and remove notes within but you also have to manually add/remove some 
+lines in the `.main.tex` file which is why I recommend to use the LaTeX notes manager 
+I've programmed which I'll explain in detail later. 
+
+Also, you cannot compile the subfiles individually (in fact, all of the `.tex` files here) 
+since it uses the style files from a separate directory and it'll cause an error. 
+That's another reason to use the CLI program I've mentioned earlier.
+
+=== `stylesheets/`
+
+Where my custom LaTeX style (`.sty`) and class (`.cls`) are stored. It got its name 
+since I'm primarily familiar with web dev't and it just makes sense (at least for me). 
+
+Take note that the LaTeX files from the `notes/` directory does use packages from here 
+but without referring to the relative or absolute directory. Compiling them normally would 
+result in an error. The recommended way of compiling them is through the CLI program 
+which will be the next bringer of attention.
+
+== Simple LaTeX notes manager CLI
+
+There's a simple LaTeX notes manager script stored in link:compile.py[`compile.py`] 
+intended only for the directory. It is a CLI program that lets you add, remove, open, and 
+compile notes easily. You're free to use and modify it for any other purposes.
+
+Also, it is the recommended way of doing things around here since it automates the 
+workflow process. 
+
+=== Usage Examples
+
+To add a subject to the `notes/` directory:
+
+[source, shell]
+----
+python compile.py add --subject "<SUBJECT_NAME>"
+----
+
+You can also add multiple subjects at once:
+
+[source, shell]
+----
+python compile.py add --subject "<SUBJECT_NAME_1>" "<SUBJECT_NAME_2>" ... "<SUBJECT_NAME_n>"
+----
+
+To add a note under a subject:
+
+[source, shell]
+----
+python compile.py add --note "<SUBJECT_NAME>" "<NOTE_TITLE>"
+----
+
+Like adding subjects, you can also add multiple notes at once:
+
+[source, shell]
+----
+python compile.py add --note "<SUBJECT_NAME>" "<NOTE_TITLE_1>" "<NOTE_TITLE_2>" ... "<NOTE_TITLE_n>" 
+----
+
+Even better, you can add notes under multiple subjects in one command:
+
+[source, shell]
+----
+python compile.py add --note "<SUBJECT_NAME_1>" "<NOTE_TITLE_1.1>" "<NOTE_TITLE_1.2>" ... "<NOTE_TITLE_1.n>" --note "<SUBJECT_NAME_2>" "<NOTE_TITLE_2.1>" "<NOTE_TITLE_2.2>" ... "<NOTE_TITLE_2.n>"
+----
+
+OR MUCH EVEN BETTER, you can add notes and subjects at the same time:
+
+[source, shell]
+----
+python compile.py add --subject "<SUBJECT_NAME_THAT_DOESNT_EXIST>" --note "<SUBJECT_NAME_THAT_DOESNT_EXIST>" "<NOTE_TITLE_1>" "<NOTE_TITLE_2>" ... "<NOTE_TITLE_n>" 
+----
+
+The commands syntax for removing and compiling is pretty much the same except 
+they have the following additional arguments under the note (`--note`) option:
+
+- `:all:`
+-- Refers to all of the individual notes (except the main note) under the 
+subject.
+
+- `:except:`
+-- Refers to all of the individual notes except the following note/s with the 
+title (and the main note file). 
+
+Nonetheless, you can still view the help section for more details.
+
+== Some other things
+
+I'll link you to http://freebies-hunt.netlify.com/[Freebies Hunt]. It's a website 
+that is full of free and open content that ranges from books, software, courses, 
+and so much more. It's also where I list most of my resources use to study since 
+I try to study deeply as much as possible with only free resources (though, admittedly 
+it doesn't really bear useful results; just go and start right away with any kind).
+
+Speaking of resource list, here's one of the most (if not, the most)
+https://github.com/sindresorhus/awesome[awesome] resource list. It's a resource list... 
+of resource list. "RESOURCE LIST"-CEPTION!
+
+== Frequently Asked Questions (FAQ)
+
+=== What?
+
+Yeah... I have that in mind too...
+
+=== How?
+
+I take notes... but seriously, most of these notes came from my offline
+notebook, also known as paper notebook. Although, some of them are
+re-edited just to go for another attempt at explaining it.
+
+=== Why?
+
+For open knowledge, only without the guarantee of precision and
+accuracy... 🙃 And to practice this kind of
+writing-everything-that-you've-learned-down-in-a-notebook-on-a-reformatted-way
+practice.
+
+=== How to contribute?
+
+It's a collection of my notes about anything
+and it is mostly intended for personal use. So...
+
+If you want to correct me on things, just shoot me an email or create a
+new issue on the issue tracker. 😁
+
+If you want, feel free to improve it (esp. the CLI program). It's here so why 
+not go for it, too.
