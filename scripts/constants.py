@@ -1,10 +1,17 @@
 from pathlib import Path
 from string import Template
 
-__all__ = ["CURRENT_DIRECTORY", "NOTES_DIRECTORY", "STYLE_DIRECTORY", "NOTE_ATTRIBUTE_NAME", "SUBJECT_ATTRIBUTE_NAME",
+__all__ = ["PROGRAM_NAME", "SHORT_NAME",
+           "CURRENT_DIRECTORY", "NOTES_DIRECTORY", "STYLE_DIRECTORY", "TEMP_DIRECTORY", "OUTPUT_DIRECTORY",
+           
+           "NOTE_ATTRIBUTE_NAME", "SUBJECT_ATTRIBUTE_NAME",
            "SUBCOMMAND_ATTRIBUTE_NAME", "DEFAULT_LATEX_DOC_CONFIG", "DEFAULT_LATEX_DOC_KEY_LIST",
            "DEFAULT_LATEX_MAIN_FILE_DOC_KEY_LIST", "DEFAULT_LATEX_SUBFILE_DOC_KEY_LIST", "MAIN_SUBJECT_TEX_FILENAME",
+           "DEFAULT_LATEX_FILE_EXTENSION",
            "EXIT_CODES",
+
+           # SQL-related stuff
+           "NOTES_DB_SQL_SCHEMA", "NOTES_DB_FILEPATH",
 
            # LaTeX raw source code
            "DEFAULT_LATEX_MAIN_FILE_SOURCE_CODE", "DEFAULT_LATEX_SUBFILE_SOURCE_CODE",
@@ -17,9 +24,15 @@ __all__ = ["CURRENT_DIRECTORY", "NOTES_DIRECTORY", "STYLE_DIRECTORY", "NOTE_ATTR
            ]
 
 # common constants
+PROGRAM_NAME = "Simple Personal Lecture Manager"
+SHORT_NAME = "personal-lecture-manager"
+
 CURRENT_DIRECTORY = Path("./")
 NOTES_DIRECTORY = CURRENT_DIRECTORY / "notes/"
 STYLE_DIRECTORY = CURRENT_DIRECTORY / "stylesheets/"
+OUTPUT_DIRECTORY = CURRENT_DIRECTORY / ".output/"
+TEMP_DIRECTORY = CURRENT_DIRECTORY / ".tmp/"
+
 NOTE_ATTRIBUTE_NAME = "note_metalist"
 SUBJECT_ATTRIBUTE_NAME = "subject_metalist"
 SUBCOMMAND_ATTRIBUTE_NAME = "subcommand"
@@ -30,9 +43,103 @@ DEFAULT_LATEX_DOC_CONFIG = {
 
 DEFAULT_LATEX_DOC_KEY_LIST = ["author", "date", "title"]
 
+NOTES_DB_FILEPATH = NOTES_DIRECTORY / "notes.db"
+NOTES_DB_SQL_SCHEMA = r"""/*
+One thing to note here is the REGEXP function.
+The version that the SQLite version to be used with this app (3.28)
+doesn't have any by default and it has to be user-defined.
+
+The REGEXP function can be found in `$PROJECT_ROOT/scripts/helper.py`
+as function `regex_match`.
+*/
+
+-- enabling foreign keys since SQLite 3.x has it disabled by default
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS "subjects" (
+    "subject_id" INTEGER,
+    "name" TEXT UNIQUE NOT NULL,
+    "slug" TEXT UNIQUE NOT NULL,
+    PRIMARY KEY("subject_id"),
+    CHECK(
+        typeof("name") == "text" AND
+        length("name") <= 256 AND
+        REGEXP("name", "^[a-zA-Z0-9!@#$%^&*()-+=\[\]{}:;',.<>?|\\ ~`]+$")
+    )
+);
+
+CREATE TRIGGER IF NOT EXISTS unique_subject_check
+BEFORE UPDATE ON subjects
+BEGIN
+    SELECT
+    CASE
+        WHEN (SELECT COUNT(slug) FROM subjects WHERE slug == NEW.slug) >= 1
+            THEN RAISE(FAIL, "Resulting subject folder name already exist in the database.")
+    END;
+END;
+
+CREATE TABLE IF NOT EXISTS "notes" (
+    "note_id" INTEGER,
+    "title" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "subject_id" INTEGER NOT NULL,
+    "datetime_modified" DATETIME NOT NULL,
+    PRIMARY KEY("note_id"),
+    FOREIGN KEY("subject_id") REFERENCES "subjects"("subject_id")
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CHECK (
+        -- checking if the title is a string with less than 512 characters
+        typeof("title") == "text" AND
+        length("title") <= 256 AND
+
+        -- checking if the datetime is indeed in ISO format
+        typeof("datetime_modified") == "text" AND
+        REGEXP("datetime_modified", "^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+    )
+);
+
+-- creating a trigger on "notes" table which will check the uniqueness of the
+-- filename of the incoming note for a subject; in other words, there may be duplicates of
+-- the note with the same filename in two or more different subjects but not under
+-- the same subject
+CREATE TRIGGER IF NOT EXISTS unique_filename_note_check
+BEFORE INSERT ON notes
+BEGIN
+    SELECT
+    CASE
+        WHEN (SELECT COUNT(slug) FROM notes WHERE subject_id == NEW.subject_id AND slug == NEW.slug) >= 1
+            THEN RAISE(FAIL, "There's already a note with the same filename under the specified subject.")
+    END;
+END;
+
+-- similar trigger except it happens on the update event
+CREATE TRIGGER IF NOT EXISTS unique_filename_update_note_check
+BEFORE UPDATE ON "notes"
+BEGIN
+    SELECT
+    CASE
+        WHEN (SELECT COUNT(NEW.slug) FROM notes WHERE subject_id == NEW.subject_id AND slug == NEW.slug) >= 1
+            AND OLD.slug != NEW.slug
+            THEN RAISE(FAIL, "There's already a note with the same filename under the specified subject.")
+
+        WHEN (SELECT COUNT(NEW.title) FROM notes WHERE subject_id == NEW.subject_id AND title == NEW.title) >= 1
+            AND OLD.title != NEW.title
+            THEN RAISE(FAIL, "There's already a note with the same title under the specified subject.")
+
+        WHEN OLD.title == NEW.title AND OLD.slug != NEW.slug
+            THEN RAISE(ABORT, "Cannot modify filename of the note without changing the title.")
+    END;
+END;
+
+-- creating an index for the notes
+CREATE INDEX IF NOT EXISTS notes_index ON "notes"("title", "slug", "subject_id");
+"""
+
 # TODO: Make configurable templates for main and subfiles
 DEFAULT_LATEX_MAIN_FILE_DOC_KEY_LIST = []
 DEFAULT_LATEX_SUBFILE_DOC_KEY_LIST = []
+DEFAULT_LATEX_FILE_EXTENSION = ".tex"
 
 MAIN_SUBJECT_TEX_FILENAME = ".main.tex"
 
@@ -52,29 +159,6 @@ EXIT_CODES = {
                      "made you got this error and report it to the developer at the following GitHub repo "
                      "(https://github.com/foo-dogsquared/a-remote-repo-full-of-notes-of-things-i-do-not-know-about).",
 }
-
-# TODO: I might make use of a SQLite database someday
-SQL_SCHEMA = r"""
-CREATE TABLE templates(
-    template_id INTEGER,
-    name TEXT UNIQUE NOT NULL,  
-    template TEXT UNIQUE NOT NULL,
-    description TEXT,
-    PRIMARY KEY(template_id),
-    CHECK(
-        -- checking the name is a string less than or equal to 128 characters
-        typeof(name) == "text" AND 
-        length(name) <= 128 AND 
-
-        typeof(template) == "text" AND 
-
-        -- checking the description if it's either empty or a string less than or equal to 1024 characters
-        (typeof(description) == "null" OR 
-        (typeof(description) == "text" AND 
-        length(description) <= 1024))
-    )
-)
-"""
 
 # this is just for backup in case the .default_tex_template is not found
 DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false, oneside, 12pt]{standalone}

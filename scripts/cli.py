@@ -1,10 +1,11 @@
 # native packages
-from argparse import ArgumentParser, HelpFormatter, RawTextHelpFormatter
+from argparse import ArgumentParser, HelpFormatter
+import logging
 import sys
 
 # custom packages
 import scripts.constants as constants
-from scripts.manager import add_note, remove_note, compile_note, open_note
+from scripts.manager import add_note, remove_note, compile_note, open_note, list_note
 
 
 # Making between each option to have a newline for easier reading
@@ -17,7 +18,7 @@ class BlankLinesHelpFormatter(HelpFormatter):
 def cli(arguments):
     argument_parser = ArgumentParser(description="A simple LaTeX notes manager "
                                                  "specifically created for my workflow.",
-                                     prog="personal-lecture-manager-cli",
+                                     prog=constants.SHORT_NAME,
                                      formatter_class=BlankLinesHelpFormatter)
 
     # add the parsers for the subcommands
@@ -25,22 +26,30 @@ def cli(arguments):
                                                 help="You can append a help option (-h) for each subcommand "
                                                      "to see their arguments and available options.")
 
+    # add the subcommand 'get'
+    list_note_parser = subparsers.add_parser("list", formatter_class=BlankLinesHelpFormatter,
+                                             help="Get a list of notes/subjects from the database.")
+    list_note_parser.add_argument("subjects", nargs="*", type=str,
+                                  metavar=("SUBJECT"), default=":all:")
+    list_note_parser.set_defaults(subcmd_func=list_note, subcmd_parser=list_note_parser)
+
     # add the subcommand 'add'
     add_note_parser = subparsers.add_parser("add", formatter_class=BlankLinesHelpFormatter,
-                                            help="Add a note in the appropriate location at the notes directory.")
+                                            help="Add a note/subject in the appropriate location "
+                                                 "at the notes directory.")
     add_note_parser.add_argument("--note", "-n", action="append", nargs="+", type=str,
                                  metavar=("SUBJECT", "TITLE"), dest=constants.NOTE_ATTRIBUTE_NAME,
                                  help="Takes a subject as the first argument "
                                       "then the title of the note(s) to be added. \n\n"
                                       "This option can also be passed multiple times in one command query.")
     add_note_parser.add_argument("--subject", "-s", action="append", nargs="*", type=str,
+                                 metavar=("SUBJECT"),
                                  dest=constants.SUBJECT_ATTRIBUTE_NAME,
                                  help="Takes a list of subjects to be added into the notes directory.")
     add_note_parser.add_argument("--force", action="store_true", help="Force to write the file if the note exists.")
     add_note_parser.add_argument("--strict", action="store_true", help="Set the program to abort execution once it "
                                                                        "encounters an error.")
     add_note_parser.set_defaults(subcmd_func=add_note, subcmd_parser=add_note_parser)
-
 
     # add the subcommand 'remove'
     remove_note_parser = subparsers.add_parser("remove", aliases=["rm"],
@@ -95,5 +104,18 @@ def cli(arguments):
             passed_subcommand_parser.print_help()
             sys.exit(0)
 
-        print(args)
+        # setting up the logger for the file
+        log = logging.getLogger(__name__)
+
+        # setting up config for stream and file loggers
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.WARNING)
+
+        file_handler = logging.FileHandler()
+        file_handler.setLevel(logging.DEBUG)
+
+        # adding the handlers to the root logger
+        log.addHandler(stream_handler)
+        log.addHandler(file_handler)
+
         note_function(**args)
