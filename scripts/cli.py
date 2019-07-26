@@ -5,7 +5,7 @@ import sys
 
 # custom packages
 import scripts.constants as constants
-from scripts.manager import add_note, remove_note, compile_note, open_note, list_note
+from .manager import add_note, remove_note, compile_note, open_note, list_note
 
 
 # Making between each option to have a newline for easier reading
@@ -29,8 +29,13 @@ def cli(arguments):
     # add the subcommand 'get'
     list_note_parser = subparsers.add_parser("list", formatter_class=BlankLinesHelpFormatter,
                                              help="Get a list of notes/subjects from the database.")
-    list_note_parser.add_argument("subjects", nargs="*", type=str,
-                                  metavar=("SUBJECT"), default=":all:")
+    list_note_parser.add_argument("subjects", nargs="*", type=str, metavar=("SUBJECT"), default=":all:",
+                                  help="An array of subjects delimited by whitespace to list its notes in the "
+                                       "database. You can list all of the subjects and their notes by providing "
+                                       "one of the arguments to be \":all:\".")
+    list_note_parser.add_argument("--sort", type=str, metavar="TYPE",
+                                  help="Gives the result in a specified order. Can only limited keywords. Such "
+                                       "keywords include \"title\", \"id\", and \"date\".")
     list_note_parser.set_defaults(subcmd_func=list_note, subcmd_parser=list_note_parser)
 
     # add the subcommand 'add'
@@ -46,22 +51,24 @@ def cli(arguments):
                                  metavar=("SUBJECT"),
                                  dest=constants.SUBJECT_ATTRIBUTE_NAME,
                                  help="Takes a list of subjects to be added into the notes directory.")
-    add_note_parser.add_argument("--force", action="store_true", help="Force to write the file if the note exists.")
-    add_note_parser.add_argument("--strict", action="store_true", help="Set the program to abort execution once it "
-                                                                       "encounters an error.")
+    add_note_parser.add_argument("--force", action="store_true", help="Force to write the file if the note exists "
+                                                                      "in the filesystem.")
     add_note_parser.set_defaults(subcmd_func=add_note, subcmd_parser=add_note_parser)
 
     # add the subcommand 'remove'
     remove_note_parser = subparsers.add_parser("remove", aliases=["rm"],
                                                formatter_class=BlankLinesHelpFormatter,
-                                               help="Remove a note from the appropriate "
-                                                    "location at the notes directory.")
+                                               help="Remove a subject/note from the binder.")
     remove_note_parser.add_argument("--note", "-n", action="append", nargs="+", type=str,
                                     metavar=("SUBJECT", "TITLE"), dest=constants.NOTE_ATTRIBUTE_NAME,
                                     help="Takes a subject as the first argument and the title of the note(s) "
                                          "to be deleted as the rest. You can delete all of the notes on a "
                                          "subject by providing one of the argument as ':all:'. "
                                          "This option can also be passed multiple times in one command query.")
+    remove_note_parser.add_argument("--subject", "-s", action="append", nargs="*", type=str,
+                                    metavar=("SUBJECT"), dest=constants.SUBJECT_ATTRIBUTE_NAME,
+                                    help="Takes a list of subjects to be removed into the binder database.")
+    remove_note_parser.add_argument("--delete", action="store_true", help="Delete the files on disk.")
     remove_note_parser.set_defaults(subcmd_func=remove_note, subcmd_parser=remove_note_parser)
 
     # add the subcommand 'compile'
@@ -81,14 +88,16 @@ def cli(arguments):
     # add the subcommand 'open'
     open_note_parser = subparsers.add_parser("open", formatter_class=BlankLinesHelpFormatter,
                                              help="Open up specified note with the default/configured text editor.")
-    open_note_parser.add_argument("--note", "-n", action="append", nargs="+", type=str,
-                                  metavar=("SUBJECT", "TITLE"), dest=constants.NOTE_ATTRIBUTE_NAME,
-                                  help="Takes a subject and a title of the note(s) to be opened with "
-                                       "the default/configured editor.")
+    open_note_parser.add_argument("--note", nargs=2, type=str, metavar=("SUBJECT", "NOTE_TITLE"),
+                                  help="Takes a subject and a title of the note to be opened with "
+                                       "the default/configured editor. Only accepts one note to be opened.")
+    open_note_parser.add_argument("--execute", type=str, metavar=("COMMAND"),
+                                  help=f"Replace the default text editor ({constants.DEFAULT_NOTE_EDITOR}) with the "
+                                  "given command. You have to indicate the note with \"{note}\" "
+                                  "(i.e. \"code {note}\").")
     open_note_parser.set_defaults(subcmd_func=open_note, subcmd_parser=open_note_parser)
 
     args = vars(argument_parser.parse_args())
-
     passed_subcommand = args.pop(constants.SUBCOMMAND_ATTRIBUTE_NAME, None)
     if passed_subcommand is None or len(arguments) == 1:
         argument_parser.print_help()
@@ -105,17 +114,7 @@ def cli(arguments):
             sys.exit(0)
 
         # setting up the logger for the file
-        log = logging.getLogger(__name__)
-
-        # setting up config for stream and file loggers
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.WARNING)
-
-        file_handler = logging.FileHandler()
-        file_handler.setLevel(logging.DEBUG)
-
-        # adding the handlers to the root logger
-        log.addHandler(stream_handler)
-        log.addHandler(file_handler)
-
+        logging.basicConfig(filename=constants.SHORT_NAME + ".log", filemode="w", level=logging.INFO,
+                            format="%(levelname)s (%(asctime)s): %(message)s")
+        logging.info("Subcommand: {subcmd}".format(subcmd=passed_subcommand))
         note_function(**args)

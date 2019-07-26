@@ -1,5 +1,8 @@
 # native packages
-from datetime import date
+from contextlib import contextmanager
+import logging
+from re import compile
+import sqlite3
 import sys
 
 # program constants
@@ -19,6 +22,7 @@ def sys_error_print(error, message=None, strict=False, file=sys.stderr):
     """
     error_message = message if message is not None else constants.EXIT_CODES.get(error,
                                                                                  constants.EXIT_CODES["UNKNOWN_ERROR"])
+    logging.error(error_message)
     print("\nError: {error}\n{error_message}".format(error=error, error_message=error_message), file=file)
 
     if strict:
@@ -52,6 +56,47 @@ def kebab_case(string, separator="-"):
     return separator.join(filtered_word_list)
 
 
+def build_prefix_array(pattern):
+    """
+    Returns a list of numbers (indexes) of the location where the given pattern from the text was found.
+    Similar to the built-in string (`str`) function `find`), it'll return -1 when no match has found.
+    :param text:
+    :param pattern:
+    :return: [int]
+    """
+
+    # building the prefix array
+    pattern_length = len(pattern)
+    prefix_array = [0] * pattern_length
+    j = 0
+
+    for i in range(1, pattern_length):
+        if pattern[j] == pattern[i]:
+            prefix_array[i] = j + 1
+            j += 1
+        else:
+            j = prefix_array[j - 1]
+            prefix_array[i] = j
+            continue
+
+        i += 1
+
+    return prefix_array
+
+def substring_search(text, pattern):
+    prefix_array = build_prefix_array(pattern)
+
+    # TODO:
+    # Compare the text with pattern
+    # Start by comparing the characters in the text and the pattern
+    # If the character doesn't match, go back to the previous value and start the comparison
+    #   in the index that the previous value pointed to
+    # If it's the same, then take not of the index of the text and move to the next character
+
+    # for index in characters:
+    pass
+
+
 def latex_fill_template(_doctype="SUBMAIN", **kwargs):
     """
     Returns a string filled with the LaTeX document code.
@@ -76,32 +121,26 @@ def latex_fill_template(_doctype="SUBMAIN", **kwargs):
     return latex_template
 
 
-def create_subject_folder(subject):
-    subject_slug = kebab_case(subject)
-    subject_folder_path = constants.NOTES_DIRECTORY / subject_slug
-    if subject_folder_path.exists():
-        sys_error_print("SUBJECT_ALREADY_EXISTS",
-                        "Subject \"{subject}\" (with the resulting directory path \"{path}\") has been "
-                        "already found in the notes folder.".format(subject=subject, path=subject_slug))
-        return None
+def regex_match(string, pattern):
+    regex_pattern = compile(pattern)
+    return regex_pattern.search(string) is not None
 
-    # creating the folder for the subject
+
+@contextmanager
+def init_db(db_path=constants.NOTES_DB_FILEPATH):
+    notes_db = sqlite3.connect(db_path)
+    notes_db.row_factory = sqlite3.Row
+
+    notes_db.create_function("REGEXP", 2, regex_match)
+    notes_db.create_function("SLUG", 1, kebab_case)
+    notes_db.executescript(constants.NOTES_DB_SQL_SCHEMA)
     try:
-        subject_folder_path.mkdir()
-    except FileExistsError:
-        sys_error_print("MKDIR_FAILED",
-                        "For some reason, the creation of the directory for subject \"{subject}\" "
-                        "has failed. Please try again.".format(subject=subject))
-
-    # creating the .main.tex file
-    main_tex_file = subject_folder_path / constants.MAIN_SUBJECT_TEX_FILENAME
-    main_tex_file.touch()
-
-    with main_tex_file.open("w") as main_subject_tex_file:
-        today = date.today()
-        latex_string = constants.DEFAULT_LATEX_MAIN_FILE_TEMPLATE. \
-            safe_substitute(__author__=constants.DEFAULT_LATEX_DOC_CONFIG["author"],
-                            __date__=today.strftime("%B %d, %Y"),
-                            __subject__=subject)
-        main_subject_tex_file.write(latex_string)
-
+        cursor = notes_db.cursor()
+        yield cursor
+        cursor.close()
+        notes_db.commit()
+    except sqlite3.DatabaseError as error:
+        notes_db.rollback()
+        raise error
+    finally:
+        notes_db.close()

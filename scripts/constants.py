@@ -21,6 +21,9 @@ __all__ = ["PROGRAM_NAME", "SHORT_NAME",
 
            # preferences
            "DEFAULT_MANAGER_PREFERENCES", "MANAGER_PREFERENCES_FILENAME",
+
+           # SVG-related constants
+           "FIGURES_DIRECTORY_NAME", "DEFAULT_NOTE_EDITOR", "DEFAULT_SVG_TEMPLATE"
            ]
 
 # common constants
@@ -41,6 +44,8 @@ DEFAULT_LATEX_DOC_CONFIG = {
     "author": "Gabriel Arazas",
 }
 
+DEFAULT_NOTE_EDITOR = "vim"
+
 DEFAULT_LATEX_DOC_KEY_LIST = ["author", "date", "title"]
 
 NOTES_DB_FILEPATH = NOTES_DIRECTORY / "notes.db"
@@ -57,10 +62,10 @@ as function `regex_match`.
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS "subjects" (
-    "subject_id" INTEGER,
+    "id" INTEGER,
     "name" TEXT UNIQUE NOT NULL,
     "slug" TEXT UNIQUE NOT NULL,
-    PRIMARY KEY("subject_id"),
+    PRIMARY KEY("id"),
     CHECK(
         typeof("name") == "text" AND
         length("name") <= 256 AND
@@ -79,13 +84,13 @@ BEGIN
 END;
 
 CREATE TABLE IF NOT EXISTS "notes" (
-    "note_id" INTEGER,
+    "id" INTEGER,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "subject_id" INTEGER NOT NULL,
     "datetime_modified" DATETIME NOT NULL,
-    PRIMARY KEY("note_id"),
-    FOREIGN KEY("subject_id") REFERENCES "subjects"("subject_id")
+    PRIMARY KEY("id"),
+    FOREIGN KEY("subject_id") REFERENCES "subjects"("id")
         ON DELETE CASCADE
         ON UPDATE CASCADE,
     CHECK (
@@ -110,6 +115,9 @@ BEGIN
     CASE
         WHEN (SELECT COUNT(slug) FROM notes WHERE subject_id == NEW.subject_id AND slug == NEW.slug) >= 1
             THEN RAISE(FAIL, "There's already a note with the same filename under the specified subject.")
+            
+        WHEN SLUG(NEW.title) != NEW.slug
+            THEN RAISE(FAIL, "Given filename (slug) for the subject note doesn't match with the title")
     END;
 END;
 
@@ -122,13 +130,16 @@ BEGIN
         WHEN (SELECT COUNT(NEW.slug) FROM notes WHERE subject_id == NEW.subject_id AND slug == NEW.slug) >= 1
             AND OLD.slug != NEW.slug
             THEN RAISE(FAIL, "There's already a note with the same filename under the specified subject.")
-
+    
         WHEN (SELECT COUNT(NEW.title) FROM notes WHERE subject_id == NEW.subject_id AND title == NEW.title) >= 1
             AND OLD.title != NEW.title
             THEN RAISE(FAIL, "There's already a note with the same title under the specified subject.")
 
         WHEN OLD.title == NEW.title AND OLD.slug != NEW.slug
             THEN RAISE(ABORT, "Cannot modify filename of the note without changing the title.")
+            
+        WHEN OLD.title != NEW.title AND OLD.slug != NEW.slug AND SLUG(NEW.title) != NEW.slug
+            THEN RAISE(FAIL, "Updated filename of the note doesn't match with the title.")
     END;
 END;
 
@@ -155,6 +166,8 @@ EXIT_CODES = {
                                "there.",
     "FILE_CONFLICT": "Certain files are detected but they are the wrong type of files (or perhaps it is a directory "
                      "instead of a file).",
+    "UNSUPPORTED_PLATFORM": "Some functions of this script cannot function on certain platform. Check the code around "
+                            "here and modify it yourself for now (and sorry for the inconvenience).",
     "UNKNOWN_ERROR": "An error has occurred for unknown reasons. Try to remember and replicate the steps on what "
                      "made you got this error and report it to the developer at the following GitHub repo "
                      "(https://github.com/foo-dogsquared/a-remote-repo-full-of-notes-of-things-i-do-not-know-about).",
@@ -399,3 +412,78 @@ DEFAULT_MANAGER_PREFERENCES = {
     "latex-engine-enable-synctex": True,
 }
 MANAGER_PREFERENCES_FILENAME = CURRENT_DIRECTORY / "latex-note-manager.pref.json"
+
+# Default preferences for figures
+FIGURES_DIRECTORY_NAME = "graphics"
+
+DEFAULT_SVG_EDITOR = "inkscape"
+DEFAULT_SVG_TEMPLATE = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="240mm"
+   height="120mm"
+   viewBox="0 0 240 120"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.4 (unknown)"
+   sodipodi:docname="figure.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.99437388"
+     inkscape:cx="284.27627"
+     inkscape:cy="182.72055"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     showborder="true"
+     width="200mm"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     inkscape:window-width="2520"
+     inkscape:window-height="995"
+     inkscape:window-x="20"
+     inkscape:window-y="65"
+     inkscape:window-maximized="1">
+    <inkscape:grid
+       type="xygrid"
+       id="grid815"
+       units="mm"
+       spacingx="10"
+       spacingy="10"
+       empspacing="4"
+       dotted="false" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-177)" />
+</svg>
+"""
