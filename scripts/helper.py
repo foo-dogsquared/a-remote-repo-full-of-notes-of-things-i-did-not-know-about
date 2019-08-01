@@ -56,6 +56,30 @@ def kebab_case(string, separator="-"):
     return separator.join(filtered_word_list)
 
 
+def deduplicate_list(sequence, rtuple=False):
+    """
+    Deduplicates a list while preserving order.
+
+    Code based in this Stack Overflow discussion (https://stackoverflow.com/a/480227).
+
+    :param sequence: A sequence of items (list, tuple, or set).
+    :type sequence: list || tuple || set
+
+    :param rtuple: Specifies if the function should return it as a tuple instead.
+    :type rtuple: bool
+
+    :return: A list (or a tuple, if specified) of the deduplicated sequence.
+    :rtype: list || tuple
+    """
+    seen = set()
+    seen_add = seen.add
+
+    if rtuple is True:
+        return (item for item in sequence if not (item in seen or seen_add(item)))
+    else:
+        return [item for item in sequence if not (item in seen or seen_add(item))]
+
+
 def build_prefix_array(pattern):
     """
     Returns a list of numbers (indexes) of the location where the given pattern from the text was found.
@@ -64,7 +88,6 @@ def build_prefix_array(pattern):
     :param pattern:
     :return: [int]
     """
-
     # building the prefix array
     pattern_length = len(pattern)
     prefix_array = [0] * pattern_length
@@ -97,50 +120,67 @@ def substring_search(text, pattern):
     pass
 
 
-def latex_fill_template(_doctype="SUBMAIN", **kwargs):
-    """
-    Returns a string filled with the LaTeX document code.
-    :param _doctype: Indicates whether it needs the main or the submain template. Choices include
-                    "MAIN" or "SUBMAIN".
-    :param kwargs: Keywords to be used from the configured template keys from DEFAULT_LATEX_DOC_KEY_LIST.
-    :return: str
-    """
-
-    _doctype = _doctype.lower()
-    template_dict = {}
-    for key, value in kwargs.items():
-        template_dict["__" + key + "__"] = value
-
-    latex_template = None
-
-    if _doctype is "main":
-        latex_template = constants.DEFAULT_LATEX_MAIN_FILE_TEMPLATE.safe_substitute(template_dict)
-    if _doctype is "submain":
-        latex_template = constants.DEFAULT_LATEX_SUBFILE_TEMPLATE.safe_substitute(template_dict)
-
-    return latex_template
-
-
 def regex_match(string, pattern):
     regex_pattern = compile(pattern)
     return regex_pattern.search(string) is not None
 
 
-@contextmanager
-def init_db(db_path=constants.NOTES_DB_FILEPATH):
+def initialized_db(db_path=constants.NOTES_DB_FILEPATH):
+    """
+    Simply returns an initialized database. Useful if you're intending to use the same database connection throughout
+    the program runtime.
+
+    :param db_path: The name (path) of the database to be initialized.
+    :type db_path: pathlib.Path
+
+    :return: A Python SQLite3 Connection object with the initialization has already taken place.
+    :rtype: sqlite3.Connection
+    """
     notes_db = sqlite3.connect(db_path)
     notes_db.row_factory = sqlite3.Row
 
     notes_db.create_function("REGEXP", 2, regex_match)
     notes_db.create_function("SLUG", 1, kebab_case)
     notes_db.executescript(constants.NOTES_DB_SQL_SCHEMA)
+    return notes_db
+
+
+@contextmanager
+def use_db(notes_db=None):
+    """
+    Simply provides a context manager for using SQLite3 databases for convenience. Usually used with `initialized_db`
+    function. If no database connection was provided, it'll create and use the default connection.
+
+    :param notes_db: The database connection object to be used. If none was provided, it'll create one with
+                     `initialized_db` function and use that instead.
+    :type notes_db: sqlite3.Connection
+
+    :return: Yields a tuple similar to `init_db`
+    """
+    if notes_db is None:
+        notes_db = initialized_db()
+
     try:
         cursor = notes_db.cursor()
-        yield cursor
+        yield (cursor, notes_db)
         cursor.close()
         notes_db.commit()
     except sqlite3.DatabaseError as error:
         notes_db.rollback()
         raise error
-    finally:
+
+
+@contextmanager
+def init_db(db_path=constants.NOTES_DB_FILEPATH):
+    """
+    Context manager for initializing and using a database right away. Take note that the database connection is
+    immediately closed after.
+
+    :param db_path: The name (path) of the database.
+    :return: A tuple of a database cursor and the database connection.
+    :rtype: tuple
+    """
+    _notes_db = initialized_db()
+    with use_db(_notes_db) as (notes_cursor, notes_db):
+        yield (notes_cursor, notes_db)
         notes_db.close()

@@ -5,6 +5,7 @@ import sys
 
 # custom packages
 import scripts.constants as constants
+from .helper import initialized_db
 from .manager import add_note, remove_note, compile_note, open_note, list_note
 
 
@@ -33,9 +34,10 @@ def cli(arguments):
                                   help="An array of subjects delimited by whitespace to list its notes in the "
                                        "database. You can list all of the subjects and their notes by providing "
                                        "one of the arguments to be \":all:\".")
-    list_note_parser.add_argument("--sort", type=str, metavar="TYPE",
-                                  help="Gives the result in a specified order. Can only limited keywords. Such "
-                                       "keywords include \"title\", \"id\", and \"date\".")
+    list_note_parser.add_argument("--sort", type=str, metavar="TYPE", default="title",
+                                  help="Gives the result in a specified order. Can only accept limited keywords. Such "
+                                       "keywords include \"title\", \"id\", and \"date\". By default, it lists the "
+                                       "notes by title.")
     list_note_parser.set_defaults(subcmd_func=list_note, subcmd_parser=list_note_parser)
 
     # add the subcommand 'add'
@@ -83,6 +85,11 @@ def cli(arguments):
                                           "You can compile all of the notes under a subject by providing ':all:' as "
                                           "the second argument (i.e., '--note <SUBJECT_NAME> :all:'). "
                                           "This option can also be passed multiple times in one command query.")
+    compile_note_parser.add_argument("--cache", action="store_true",
+                                     help=f"Specifies if the build directory "
+                                     f"(DEFAULT: {constants.TEMP_DIRECTORY_NAME}) should be kept after compilation "
+                                     f"process has completed. This will help out in speeding up compilation time "
+                                     f"especially if you're going to compile continuously.")
     compile_note_parser.set_defaults(subcmd_func=compile_note, subcmd_parser=compile_note_parser)
 
     # add the subcommand 'open'
@@ -115,6 +122,9 @@ def cli(arguments):
 
         # setting up the logger for the file
         logging.basicConfig(filename=constants.SHORT_NAME + ".log", filemode="w", level=logging.INFO,
-                            format="%(levelname)s (%(asctime)s): %(message)s")
+                            format="%(levelname)s (%(asctime)s):\n%(message)s\n")
         logging.info("Subcommand: {subcmd}".format(subcmd=passed_subcommand))
-        note_function(**args)
+
+        notes_db = initialized_db()
+        note_function(**args, db=notes_db)
+        notes_db.close()
