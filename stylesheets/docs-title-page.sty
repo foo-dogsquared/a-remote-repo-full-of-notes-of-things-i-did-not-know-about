@@ -1,4 +1,6 @@
-\ProvidePackage{stylesheets/docs-title-page}
+\NeedsTeXFormat{LaTeX2e}
+
+\ProvidesPackage{stylesheets/docs-title-page}[2019/07/09 0.1]
 
 % styling the part page divsioning
 \renewcommand*{\thepart}{\arabic{part}}
@@ -23,9 +25,7 @@
     \end{titlingpage}
 }
 
-% also define a variable for the document title 
-% since the variable for the title is erased after the \maketitle command
-\newcommand{\doctitle}{\@title}
-\newcommand{\docauthor}{\@author}
+\newcommand*{\doctitle}{\@title}
+\newcommand*{\docauthor}{\@author}
 
 \endinput
