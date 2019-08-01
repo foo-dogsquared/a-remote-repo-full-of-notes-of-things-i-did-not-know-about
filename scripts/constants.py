@@ -10,6 +10,9 @@ __all__ = ["PROGRAM_NAME", "SHORT_NAME",
            "DEFAULT_LATEX_FILE_EXTENSION",
            "EXIT_CODES",
 
+           # name restrictions
+           "INVALID_SUBJECT_NAMES", "INVALID_NOTE_TITLES",
+
            # SQL-related stuff
            "NOTES_DB_SQL_SCHEMA", "NOTES_DB_FILEPATH",
 
@@ -31,25 +34,39 @@ PROGRAM_NAME = "Simple Personal Lecture Manager"
 SHORT_NAME = "personal-lecture-manager"
 
 CURRENT_DIRECTORY = Path("./")
-NOTES_DIRECTORY = CURRENT_DIRECTORY / "notes/"
-STYLE_DIRECTORY = CURRENT_DIRECTORY / "stylesheets/"
-OUTPUT_DIRECTORY = CURRENT_DIRECTORY / ".output/"
-TEMP_DIRECTORY = CURRENT_DIRECTORY / ".tmp/"
+
+NOTES_DIRECTORY_NAME = "notes"
+NOTES_DIRECTORY = CURRENT_DIRECTORY / NOTES_DIRECTORY_NAME
+
+STYLE_DIRECTORY_NAME = "stylesheets/"
+STYLE_DIRECTORY = CURRENT_DIRECTORY / STYLE_DIRECTORY_NAME
+
+OUTPUT_DIRECTORY_NAME = ".output"
+OUTPUT_DIRECTORY = CURRENT_DIRECTORY / OUTPUT_DIRECTORY_NAME
+
+TEMP_DIRECTORY_NAME = ".tmp"
+TEMP_DIRECTORY = CURRENT_DIRECTORY / TEMP_DIRECTORY_NAME
 
 NOTE_ATTRIBUTE_NAME = "note_metalist"
 SUBJECT_ATTRIBUTE_NAME = "subject_metalist"
 SUBCOMMAND_ATTRIBUTE_NAME = "subcommand"
 
+DEFAULT_NOTE_EDITOR = "vim"
+
+DEFAULT_LATEX_DOC_KEY_LIST = ["author"]
+DEFAULT_LATEX_DOC_KEY_LIST_KEYWORDS = ["date", "title"]
 DEFAULT_LATEX_DOC_CONFIG = {
     "author": "Gabriel Arazas",
 }
 
-DEFAULT_NOTE_EDITOR = "vim"
+INVALID_SUBJECT_NAMES = (":all:", ":except:")
+INVALID_NOTE_TITLES = (":all:", ":main:", ":union:", "stylesheets", "graphics", "readme", "main")
 
-DEFAULT_LATEX_DOC_KEY_LIST = ["author", "date", "title"]
+SUBJECT_NAME_REGEX = r"^[\w\d -]+$"
 
 NOTES_DB_FILEPATH = NOTES_DIRECTORY / "notes.db"
-NOTES_DB_SQL_SCHEMA = r"""/*
+
+NOTES_DB_SQL_SCHEMA = rf"""/*
 One thing to note here is the REGEXP function.
 The version that the SQLite version to be used with this app (3.28)
 doesn't have any by default and it has to be user-defined.
@@ -64,29 +81,23 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS "subjects" (
     "id" INTEGER,
     "name" TEXT UNIQUE NOT NULL,
-    "slug" TEXT UNIQUE NOT NULL,
+    "datetime_modified" DATETIME NOT NULL,
     PRIMARY KEY("id"),
     CHECK(
-        typeof("name") == "text" AND
-        length("name") <= 256 AND
-        REGEXP("name", "^[a-zA-Z0-9!@#$%^&*()-+=\[\]{}:;',.<>?|\\ ~`]+$")
+        TYPEOF("name") == "text" AND
+        LENGTH("name") <= 128 AND
+        REGEXP("name", "^[\w\d -]+") AND 
+        LOWER("name") NOT IN {INVALID_SUBJECT_NAMES} AND 
+        
+        -- checking if the datetime is indeed in ISO format
+        TYPEOF("datetime_modified") == "text" AND
+        REGEXP("datetime_modified", "^\d{{4}}-\d{{2}}-\d{{2}} \d{{2}}:\d{{2}}:\d{{2}}$")
     )
 );
-
-CREATE TRIGGER IF NOT EXISTS unique_subject_check
-BEFORE UPDATE ON subjects
-BEGIN
-    SELECT
-    CASE
-        WHEN (SELECT COUNT(slug) FROM subjects WHERE slug == NEW.slug) >= 1
-            THEN RAISE(FAIL, "Resulting subject folder name already exist in the database.")
-    END;
-END;
 
 CREATE TABLE IF NOT EXISTS "notes" (
     "id" INTEGER,
     "title" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
     "subject_id" INTEGER NOT NULL,
     "datetime_modified" DATETIME NOT NULL,
     PRIMARY KEY("id"),
@@ -95,12 +106,13 @@ CREATE TABLE IF NOT EXISTS "notes" (
         ON UPDATE CASCADE,
     CHECK (
         -- checking if the title is a string with less than 512 characters
-        typeof("title") == "text" AND
-        length("title") <= 256 AND
+        TYPEOF("title") == "text" AND
+        LENGTH("title") <= 256 AND
+        LOWER("title") NOT IN {INVALID_NOTE_TITLES} AND
 
         -- checking if the datetime is indeed in ISO format
-        typeof("datetime_modified") == "text" AND
-        REGEXP("datetime_modified", "^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+        TYPEOF("datetime_modified") == "text" AND
+        REGEXP("datetime_modified", "^\d{{4}}-\d{{2}}-\d{{2}} \d{{2}}:\d{{2}}:\d{{2}}$")
     )
 );
 
@@ -113,46 +125,27 @@ BEFORE INSERT ON notes
 BEGIN
     SELECT
     CASE
-        WHEN (SELECT COUNT(slug) FROM notes WHERE subject_id == NEW.subject_id AND slug == NEW.slug) >= 1
-            THEN RAISE(FAIL, "There's already a note with the same filename under the specified subject.")
-            
-        WHEN SLUG(NEW.title) != NEW.slug
-            THEN RAISE(FAIL, "Given filename (slug) for the subject note doesn't match with the title")
-    END;
-END;
-
--- similar trigger except it happens on the update event
-CREATE TRIGGER IF NOT EXISTS unique_filename_update_note_check
-BEFORE UPDATE ON "notes"
-BEGIN
-    SELECT
-    CASE
-        WHEN (SELECT COUNT(NEW.slug) FROM notes WHERE subject_id == NEW.subject_id AND slug == NEW.slug) >= 1
-            AND OLD.slug != NEW.slug
-            THEN RAISE(FAIL, "There's already a note with the same filename under the specified subject.")
-    
-        WHEN (SELECT COUNT(NEW.title) FROM notes WHERE subject_id == NEW.subject_id AND title == NEW.title) >= 1
-            AND OLD.title != NEW.title
+        WHEN (SELECT COUNT(title) FROM notes WHERE subject_id == NEW.subject_id AND title == NEW.title) >= 1
             THEN RAISE(FAIL, "There's already a note with the same title under the specified subject.")
-
-        WHEN OLD.title == NEW.title AND OLD.slug != NEW.slug
-            THEN RAISE(ABORT, "Cannot modify filename of the note without changing the title.")
-            
-        WHEN OLD.title != NEW.title AND OLD.slug != NEW.slug AND SLUG(NEW.title) != NEW.slug
-            THEN RAISE(FAIL, "Updated filename of the note doesn't match with the title.")
     END;
 END;
 
 -- creating an index for the notes
-CREATE INDEX IF NOT EXISTS notes_index ON "notes"("title", "slug", "subject_id");
+CREATE INDEX IF NOT EXISTS notes_index ON "notes"("title", "subject_id");
 """
 
 # TODO: Make configurable templates for main and subfiles
 DEFAULT_LATEX_MAIN_FILE_DOC_KEY_LIST = []
+DEFAULT_LATEX_MAIN_FILE_DOC_KEY_LIST_KEYWORDS = ["main", "preface"]
+DEFAULT_LATEX_MAIN_FILE_DOC_KEY_CONFIG = {}
+
 DEFAULT_LATEX_SUBFILE_DOC_KEY_LIST = []
+DEFAULT_LATEX_SUBFILE_DOC_KEY_LIST_KEYWORDS = []
+DEFAULT_LATEX_SUBFILE_DOC_KEY_CONFIG = {}
+
 DEFAULT_LATEX_FILE_EXTENSION = ".tex"
 
-MAIN_SUBJECT_TEX_FILENAME = ".main.tex"
+MAIN_SUBJECT_TEX_FILENAME = "main.tex"
 
 # Exit codes with their generic message
 EXIT_CODES = {
@@ -174,94 +167,13 @@ EXIT_CODES = {
 }
 
 # this is just for backup in case the .default_tex_template is not found
-DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false, oneside, 12pt]{standalone}
-
-% all of the packages to be used
-\usepackage[subpreambles=true]{standalone}
-\usepackage{chngcntr}
-\usepackage{import}
-\usepackage[utf8]{inputenc}
-\usepackage{fontawesome}
-\usepackage[english]{babel}
-\usepackage[rgb]{xcolor}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{amsthm}
-\usepackage{tikz}
-\usepackage{pgfplots}
-\usepackage{fancyhdr}
-\usepackage{minted}
-\usepackage[most]{tcolorbox}
-\usepackage[colorlinks=true, linkcolor=., urlcolor=blue]{hyperref}
-
-
-% this one doesn't have a dependency and it is needed for the subfiles to
-% compile consistently in various situations
-% this also provides the \if macro for \rootdocument
-\usepackage{docs-ifrootdocument}
-
-\ifrootdocument
-    % using the Kepler fonts set if the document is compiled as standalone
-    \usepackage{kpfonts}
-
-    % using my own packages
-    \usepackage{docs-admonition-blocks}
-\fi
+DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false, oneside, 14pt]{standalone}
+\usepackage{stylesheets/docs-config}
 
 % document metadata
-\ifrootdocument
-    \author{${__author__}}
-    \title{${__title__}}
-    \date{${__date__}}
-
-    % change the default title page format from \maketitle
-    \makeatletter
-    \renewcommand*{\maketitle}{%
-    \begin{titlingpage}
-        \raggedleft
-        \vspace{20pt}
-        {\huge\bfseries\textsf{\@title}\unskip\strut\par}
-        \vspace{25pt}
-        {\Large\itshape\@author\unskip\strut\par}
-
-        \vfill
-
-        {\large \@date\par}
-    \end{titlingpage}
-    }
-
-    % also define a variable for the document title since the variable for the title is erase after the \maketitle command
-    \let\doctitle\@title
-    \let\docauthor\@author
-    \makeatother
-
-    % using the fancy header package
-    % http://linorg.usp.br/CTAN/macros/latex/contrib/fancyhdr/fancyhdr.pdf
-    \pagestyle{fancy}
-
-    % fill the header with the format
-    \fancyhead[L]{\doctitle}
-    \fancyhead[R]{\nouppercase{\rightmark}}
-
-    % fill the footer with the format
-    \fancyfoot[C]{\nouppercase{\leftmark}}
-    \fancyfoot[R]{\thepage}
-
-    % set the width of the horizontal bars in the header
-    \renewcommand{\headrulewidth}{2pt}
-    \renewcommand{\footrulewidth}{1pt}
-
-    % set the paragraph formatting
-    \setlength{\parskip}{10pt}
-    \renewcommand{\baselinestretch}{1.45} 
-
-    % set chapter style
-    \chapterstyle{bianchi}
-
-    % set chapter spacing for easier reading on digital screen
-    \setlength{\beforechapskip}{-\beforechapskip}
-\fi 
-
+\author{${__author__}}
+\title{${__title__}}
+\date{${__date__}}
 
 \begin{document}
 % Frontmatter of the class note if it's compiled standalone
@@ -284,93 +196,18 @@ DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false,
     \mainmatter
 \fi
 % Core content (HINT: always start with chapter LaTeX tag)
-
+\chapter{Chapter I}
 
 \end{document}
 """
 
 DEFAULT_LATEX_MAIN_FILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false, oneside, 12pt]{standalone}
-
-% all of the packages to be used
-\usepackage[subpreambles=true, sort=true, print=true, nocomments]{standalone}
-\usepackage{chngcntr}
-\usepackage{import}
-\usepackage[utf8]{inputenc}
-\usepackage{fontawesome}
-\usepackage[english]{babel}
-\usepackage[rgb]{xcolor}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{amsthm}
-\usepackage{tikz}
-\usepackage{pgfplots}
-\usepackage{fancyhdr}
-\usepackage{minted}
-\usepackage[most]{tcolorbox}
-\usepackage[colorlinks=true, linkcolor=., urlcolor=blue]{hyperref}
-
-% using the Kepler fonts set
-\usepackage{kpfonts}
-
-% this is needed for documents to identify if the document isjjjjjj
-\usepackage{docs-ifrootdocument}
-
-% using my own packages
-\usepackage{docs-title-page}
-\usepackage{docs-admonition-blocks}
+\usepackage{stylesheets/docs-config}
 
 % document metadata
 \author{${__author__}}
-\title{${__subject__}}
+\title{${__title__}}
 \date{${__date__}}
-
-% change the default title page format from \maketitle
-\makeatletter
-\renewcommand*{\maketitle}{%
-\begin{titlingpage}
-    \raggedleft
-    \vspace{20pt}
-    {\huge\bfseries\textsf{\@title}\unskip\strut\par}
-    \vspace{25pt}
-    {\Large\itshape\@author\unskip\strut\par}
-
-    \vfill
-
-    {\large \@date\par}
-\end{titlingpage}
-}
-
-% also define a variable for the document title since the variable for the title is erase after the \maketitle command
-\let\doctitle\@title
-\let\docauthor\@author
-\makeatother
-
-% using the fancy header package
-% http://linorg.usp.br/CTAN/macros/latex/contrib/fancyhdr/fancyhdr.pdf
-\pagestyle{fancy}
-
-% fill the header with the format
-\fancyhead[L]{\doctitle}
-\fancyhead[R]{\nouppercase{\rightmark}
-
-% fill the footer with the format
-\fancyfoot[C]{\nouppercase{\leftmark}}
-\fancyfoot[R]{\thepage}
-
-% set the width of the horizontal bars in the header
-\renewcommand{\headrulewidth}{2pt}
-\renewcommand{\footrulewidth}{1pt}
-
-% set the paragraph formatting
-\setlength{\parskip}{10pt}
-\renewcommand{\baselinestretch}{1.45}
-
-% set chapter style
-\chapterstyle{bianchi}
-
-% set chapter spacing for easier reading on digital screen
-\setlength{\beforechapskip}{-\beforechapskip}
-
 
 \begin{document}
 % Frontmatter of the class note
@@ -379,9 +216,7 @@ DEFAULT_LATEX_MAIN_FILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=fals
 \newpage
 
 \frontmatter
-\chapter{Preface}
-
-\newpage
+${__preface__}
 
 \tableofcontents
 \newpage
@@ -391,8 +226,7 @@ DEFAULT_LATEX_MAIN_FILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=fals
 
 \mainmatter
 
-% Content of the note
-% __START__
+${__main__}
 
 \end{document}
 """
