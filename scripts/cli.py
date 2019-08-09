@@ -124,6 +124,9 @@ def cli(arguments):
         logging.basicConfig(filename=constants.SHORT_NAME + ".log", filemode="w", level=logging.INFO,
                             format="%(levelname)s (%(asctime)s):\n%(message)s\n")
         logging.info("Subcommand: {subcmd}".format(subcmd=passed_subcommand))
+        
+        if constants.NOTES_DIRECTORY.exists() is False:
+            constants.NOTES_DIRECTORY.mkdir()
 
         notes_db = initialized_db()
         note_function(**args, db=notes_db)
