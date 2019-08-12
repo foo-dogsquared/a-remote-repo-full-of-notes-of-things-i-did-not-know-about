@@ -63,6 +63,13 @@ def create_symbolic_link(_link, _target):
     return symbolic_link_creation_process
 
 
+def convert_subject_query_to_dictionary(subject_query):
+        subject_query = dict(subject_query)
+        subject_query["slug"] = kebab_case(subject_query["name"])
+        subject_query["path"] = constants.NOTES_DIRECTORY / subject_query["slug"]
+        return subject_query
+
+
 def get_subject(subject, delete_in_db=True, db=None):
     """Get a subject if it exists in the database and automatically handles the case if
     the directory is deleted while the subject is found in the database.
@@ -94,13 +101,9 @@ def get_subject(subject, delete_in_db=True, db=None):
         if subject_query is None:
             raise exceptions.NoSubjectFoundError(subject)
 
-        subject_path = constants.NOTES_DIRECTORY / subject_slug
+        subject_value = convert_subject_query_to_dictionary(subject_query)
 
-        subject_value = dict(subject_query)
-        subject_value["slug"] = subject_slug
-        subject_value["path"] = subject_path
-
-        if subject_path.is_dir() is False:
+        if subject_value["path"].is_dir() is False:
             if delete_in_db is True:
                 notes_cursor.execute("DELETE FROM subjects WHERE id == :subject_id;", {"subject_id": subject_query["id"]})
                 notes_db.commit()
@@ -109,11 +112,24 @@ def get_subject(subject, delete_in_db=True, db=None):
         return subject_value
 
 
-def convert_subject_query_to_dictionary(subject_query):
-    subject_query = dict(subject_query)
-    subject_query["slug"] = kebab_case(subject_query["name"])
-    subject_query["path"] = constants.NOTES_DIRECTORY / subject_query["slug"]
-    return subject_query
+def get_subject_by_id(id, delete_in_db=True, db=None):
+    with use_db(db) as (notes_cursor, notes_db):
+        notes_cursor.execute("SELECT id, name, datetime_modified FROM subjects WHERE "
+                            "id == :id;", {"id": id})
+        
+        subject_query = notes_cursor.fetchone()
+        if subject_query is None:
+            raise exceptions.NoSubjectFoundError(id)
+        
+        subject_query = convert_subject_query_to_dictionary(subject_query)
+        
+        if subject_query["path"].is_dir() is False:
+            if delete_in_db is True:
+                notes_cursor.execute("DELETE FROM subjects WHERE id == :subject_id;", {"subject_id": subject_query["id"]})
+                notes_db.commit()
+            raise exceptions.DanglingSubjectError(subject_value)
+        
+        return subject_query
 
 
 def convert_note_query_to_dictionary(note_query, subject_query):
@@ -121,6 +137,7 @@ def convert_note_query_to_dictionary(note_query, subject_query):
     note["subject"] = subject_query["name"]
     note["slug"] = kebab_case(note["title"])
     note["path"] = subject_query["path"] / (note["slug"] + ".tex")
+    note["subject_path"] = subject_query["path"]
     return note
 
 
@@ -258,8 +275,11 @@ def get_all_subjects(sort_by=None, strict=False, delete_in_db=True, db=None):
 
 
 def get_subject_note(subject, note, delete_in_db=True, db=None):
-    """Simply finds the note from the given subject.
+    """
+    Simply finds the note from the given subject.
+    
     :param subject: The subject from where the note to be retrieved.
+
     :type subject: str
 
     :param note: The title of the note to be searched.
@@ -291,9 +311,9 @@ def get_subject_note(subject, note, delete_in_db=True, db=None):
         note = note.strip()
 
         note_query_arguments = {"subject_id": subject_query["id"], "title": note}
-
+        
         notes_cursor.execute("SELECT id, subject_id, title, datetime_modified FROM notes WHERE "
-                             "subject_id == :subject_id AND title == :title;", note_query_arguments)
+                            "subject_id == :subject_id AND title == :title;", note_query_arguments)
         note_query = notes_cursor.fetchone()
 
         if note_query is None:
@@ -309,6 +329,36 @@ def get_subject_note(subject, note, delete_in_db=True, db=None):
 
         return note_value
 
+
+def get_subject_note_by_id(id, delete_in_db=True, db=None):
+    try:
+        int(id)
+    except ValueError:
+        raise ValueError("Given ID does not convert to an integer.")
+    
+    with use_db(db) as (notes_cursor, notes_db):
+        notes_cursor.execute("SELECT id, subject_id, title, datetime_modified FROM notes WHERE "
+                            "id == :id;", {"id": id})
+        note_query = notes_cursor.fetchone()
+
+        if note_query is None:
+            raise exceptions.NoSubjectNoteFoundError(None, id)
+        
+        try:
+            subject_query = get_subject_by_id(note_query["subject_id"], delete_in_db=delete_in_db, db=db)
+        except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
+            raise error
+
+        note_query = convert_note_query_to_dictionary(note_query, subject_query)
+        
+        if note_query["path"].is_file() is False:
+            if delete_in_db is True:
+                if delete_in_db:
+                        notes_cursor.execute("DELETE FROM notes WHERE id == :note_id;", {"note_id": note_query["id"]})
+                        notes_db.commit()
+                raise exceptions.DanglingSubjectNoteFoundError(subject, [note_query])
+
+        return note_query
 
 def get_all_subject_notes(subject, sort_by=None, strict=False, delete_in_db=True, db=None):
     """Retrieve all notes under the given subject.
@@ -398,10 +448,12 @@ def create_subject(subject, db=None):
     """
     subject = subject.strip(" -")
 
-    if subject.lower() in constants.INVALID_SUBJECT_NAMES is False:
+    if subject.lower() in constants.INVALID_SUBJECT_NAMES is True:
         raise ValueError(f"Given name is one of the keywords.")
     elif regex_match(subject, constants.SUBJECT_NAME_REGEX) is False:
         raise ValueError(f"Given name contains invalid characters.")
+    elif regex_match(subject, "^\d+$") is True:
+        raise ValueError(f"Given name contains invalid characters")
 
     with use_db(db) as (notes_cursor, notes_db):
         subject_slug = kebab_case(subject)
@@ -461,23 +513,20 @@ def create_subject_note(subject, note_title, force=False, db=None):
                         or length is not at range.
     :raises sqlite3.Error: When the SQLite3 goes something wrong.
     """
-    # searching for the subject
-    try:
-        subject_query = get_subject(subject, delete_in_db=True, db=db)
-    except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
-        raise error
-
     # making sure the note doesn't exists before continuing
     try:
         note = get_subject_note(subject, note_title, delete_in_db=True, db=db)
         raise exceptions.SubjectNoteAlreadyExistError(subject, [note])
-    except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError, exceptions.NoSubjectNoteFoundError,
-            exceptions.DanglingSubjectNoteFoundError) as error:
+    except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
+        raise error
+    except (exceptions.NoSubjectNoteFoundError, exceptions.DanglingSubjectNoteFoundError) as error:
         pass
     except exceptions.SubjectNoteAlreadyExistError as error:
         raise error
 
     if note_title in constants.INVALID_NOTE_TITLES or len(note_title) > 256:
+        raise ValueError(subject, note_title)
+    if regex_match(note_title, "^\d+$") is True:
         raise ValueError(subject, note_title)
 
     note_title = note_title.strip()
@@ -489,6 +538,8 @@ def create_subject_note(subject, note_title, force=False, db=None):
                                  {"title": note_title, "subject": subject})
         except sqlite3.DatabaseError as error:
             raise error
+
+        subject_query = get_subject(subject, delete_in_db=True, db=db)
 
         note_title_slug = kebab_case(note_title)
         note_title_filepath = subject_query["path"] / (note_title_slug + ".tex")
@@ -528,6 +579,8 @@ def create_main_note(subject, _preface=None, strict=False, location=constants.NO
         preface = f"\\chapter{{Preface}}\n{Template(_preface).safe_substitute(__subject__=subject)}\n\\newpage\n"
     else:
         preface_file = subject_query["path"] / "README.txt"
+        preface = ""
+
         if preface_file.is_file() is True:
             with preface_file.open(mode="r") as subject_preface_file:
                 preface_text = subject_preface_file.read()
@@ -1077,15 +1130,15 @@ def list_note(subjects, **kwargs):
 
         for note in subject_notes_query:
             logging.info(f"Subject '{subject['name']}': {note['title']}")
-            print(f"  - {note['title']}")
+            print(f"  - ({note['id']}) {note['title']}")
         print()
 
 
 def open_note(note, **kwargs):
     """Simply opens a single note in the default text editor.
 
-    :param note: A tuple consist of the subject and the title of the note to be opened.
-    :type note: tuple(str)
+    :param note: A string of integer that represents a note ID.
+    :type note: str
 
     :param kwargs: Keyword arguments for options.
     :keyword execute: A command string that serves as a replacement for opening the note, if given any. The title
@@ -1094,12 +1147,10 @@ def open_note(note, **kwargs):
     :return: An integer of 0 for success and non-zero for failure.
     :rtype: int
     """
-    subject = note[0]
-    note_title = note[1]
-
-    note_query = get_subject_note(subject, note_title, strict=True)
-    if note_query is None:
-        return 1
+    try:
+        note_query = get_subject_note_by_id(note)
+    except exceptions.NoSubjectFoundError as error:
+        print("No subject ")
 
     note_absolute_filepath = note_query["path"].absolute().__str__()
 

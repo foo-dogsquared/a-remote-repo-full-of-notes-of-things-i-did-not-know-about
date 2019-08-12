@@ -196,7 +196,6 @@ DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false,
     \mainmatter
 \fi
 % Core content (HINT: always start with chapter LaTeX tag)
-\chapter{Chapter I}
 
 \end{document}
 """

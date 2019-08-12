@@ -95,8 +95,8 @@ def cli(arguments):
     # add the subcommand 'open'
     open_note_parser = subparsers.add_parser("open", formatter_class=BlankLinesHelpFormatter,
                                              help="Open up specified note with the default/configured text editor.")
-    open_note_parser.add_argument("--note", nargs=2, type=str, metavar=("SUBJECT", "NOTE_TITLE"),
-                                  help="Takes a subject and a title of the note to be opened with "
+    open_note_parser.add_argument("note", type=str, action="store",
+                                  help="Takes a note ID of the note to be opened with "
                                        "the default/configured editor. Only accepts one note to be opened.")
     open_note_parser.add_argument("--execute", type=str, metavar=("COMMAND"),
                                   help=f"Replace the default text editor ({constants.DEFAULT_NOTE_EDITOR}) with the "
