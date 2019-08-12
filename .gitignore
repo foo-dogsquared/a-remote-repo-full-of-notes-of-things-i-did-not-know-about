@@ -1,5 +1,5 @@
 # virtual environment folders
-personal-lectures-env*/
+*-env/
 test/
 build/
 dist/*
@@ -109,7 +109,7 @@ typings/
 # Edit at https://www.gitignore.io/?templates=visualstudiocode
 
 ### VisualStudioCode ###
-.vscode/*
+.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
