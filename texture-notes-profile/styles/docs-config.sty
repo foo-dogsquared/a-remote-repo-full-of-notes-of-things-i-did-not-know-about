@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{stylesheets/docs-config}[2019-07-29]
+\ProvidesPackage{docs-config}[2019-07-29]
 
 % all of the packages to be used
 \RequirePackage[nocomments]{standalone}
@@ -9,7 +9,7 @@
 \RequirePackage{fontawesome}
 \RequirePackage[english]{babel}
 \RequirePackage[rgb]{xcolor}
-\RequirePackage{amsmath}
+\RequirePackage[intlimits]{amsmath}
 \RequirePackage{amssymb}
 \RequirePackage{amsthm}
 \RequirePackage{tikz}
@@ -17,17 +17,17 @@
 \RequirePackage{fancyhdr}
 \RequirePackage{minted}
 \RequirePackage[most]{tcolorbox}
-\RequirePackage[colorlinks=true, linkcolor=., urlcolor=blue]{hyperref}
-\RequirePackage{kpfonts}
+\RequirePackage[colorlinks=true, linkcolor=., anchorcolor=red, urlcolor=blue, menucolor=.]{hyperref}
+\RequirePackage[fullintlimits, fullsumlimits]{kpfonts}
 
 % this one doesn't have a dependency and it is needed for the subfiles to
 % compile consistently in various situations
 % this also provides the \if macro for \rootdocument
-\RequirePackage{stylesheets/docs-ifrootdocument}
+\RequirePackage{docs-ifrootdocument}
 
 % using my own packages
-\RequirePackage{stylesheets/docs-admonition-blocks}
-\RequirePackage{stylesheets/docs-title-page}
+\RequirePackage{docs-admonition-blocks}
+\RequirePackage{docs-title-page}
 
 % using the fancy header package
 % http://linorg.usp.br/CTAN/macros/latex/contrib/fancyhdr/fancyhdr.pdf
