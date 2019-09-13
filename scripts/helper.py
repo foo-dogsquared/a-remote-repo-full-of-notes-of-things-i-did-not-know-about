@@ -125,7 +125,7 @@ def regex_match(string, pattern):
     return regex_pattern.search(string) is not None
 
 
-def initialized_db(db_path=constants.NOTES_DB_FILEPATH):
+def initialized_db(db_path=constants.CURRENT_DIRECTORY / constants.PROFILE_DIRECTORY_NAME / constants.NOTES_DB_FILENAME):
     """
     Simply returns an initialized database. Useful if you're intending to use the same database connection throughout
     the program runtime.
@@ -171,7 +171,7 @@ def use_db(notes_db=None):
 
 
 @contextmanager
-def init_db(db_path=constants.NOTES_DB_FILEPATH):
+def init_db(db_path=constants.CURRENT_DIRECTORY / constants.PROFILE_DIRECTORY_NAME / constants.NOTES_DB_FILENAME):
     """
     Context manager for initializing and using a database right away. Take note that the database connection is
     immediately closed after.

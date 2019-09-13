@@ -6,18 +6,16 @@ from multiprocessing import cpu_count
 from os import chdir, getcwd
 from os.path import relpath
 from shutil import copy, copytree, rmtree
+from pathlib import Path
 from platform import system
-from queue import Queue
-import queue
 import sqlite3
 from string import Template
-from subprocess import run, Popen, PIPE
-from threading import Thread
+from subprocess import run
 
 # custom packages
 import scripts.constants as constants
 import scripts.exceptions as exceptions
-from .helper import kebab_case, init_db, use_db, regex_match, deduplicate_list
+from .helper import kebab_case, initialized_db, use_db, regex_match, deduplicate_list
 
 """
 All of the note functions accepts a metalist of notes with the subject as the first item in each
@@ -35,7 +33,7 @@ Example:
 """
 
 
-def create_symbolic_link(_link, _target):
+def create_symbolic_link(_link, _target, filename):
     """Simply creates a relative symbolic link through the shell. Cross-platform support is down to a minimum
     so expect some bugs to pop up often.
 
@@ -54,23 +52,83 @@ def create_symbolic_link(_link, _target):
     target = _target
 
     if os_platform == "Windows":
-        symbolic_link_creation_process = run(["ln", "--symbolic", link, target.__str__()])
+        symbolic_link_creation_process = run(["ln", "--symbolic", link, target / filename])
     elif os_platform == "Linux":
-        symbolic_link_creation_process = run(["ln", "--symbolic", link, target])
+        symbolic_link_creation_process = run(["ln", "--symbolic", link, target / filename])
     else:
-        symbolic_link_creation_process = run(["ln", "--symbolic", link, target])
+        symbolic_link_creation_process = run(["ln", "--symbolic", link, filename])
 
     return symbolic_link_creation_process
 
 
-def convert_subject_query_to_dictionary(subject_query):
+def convert_subject_query_to_dictionary(subject_query, metadata=None):
         subject_query = dict(subject_query)
         subject_query["slug"] = kebab_case(subject_query["name"])
-        subject_query["path"] = constants.NOTES_DIRECTORY / subject_query["slug"]
+        subject_query["path"] = metadata["notes"] / subject_query["slug"]
         return subject_query
 
 
-def get_subject(subject, delete_in_db=True, db=None):
+def get_profile(location=constants.CURRENT_DIRECTORY):
+    """
+    Gets a profile and return the appropriate data.
+
+    :param location:
+    :return:
+    """
+    location_path = Path(location)
+    profile = location_path / constants.PROFILE_DIRECTORY_NAME
+    if profile.exists() is False:
+        raise exceptions.ProfileDoesNotExistsError(location)
+
+    notes = profile / constants.NOTES_DIRECTORY_NAME
+    db = initialized_db(notes / constants.NOTES_DB_FILENAME)
+
+    return {
+        "profile": profile,
+        "notes": notes,
+        "styles": profile / constants.STYLE_DIRECTORY_NAME,
+        "db": db,
+    }
+
+
+def create_profile(location=constants.CURRENT_DIRECTORY):
+    """
+    Create a TexTure Notes profile.
+
+    :param location: The location where the profile will be created.
+    :type location: str
+
+    :return: dict
+    """
+    location_path = Path(location)
+    profile = location_path / constants.PROFILE_DIRECTORY_NAME
+    if profile.exists() is True:
+        raise exceptions.ProfileAlreadyExistsError(location)
+
+    profile.mkdir()
+
+    latexmkrc_file = profile / "latexmkrc"
+    latexmkrc_file.touch()
+    with open(latexmkrc_file, "w") as latexmkrc:
+        latexmkrc.write(constants.DEFAULT_LATEXMKRC_TEMPLATE)
+
+    styles = profile / constants.STYLE_DIRECTORY_NAME
+    styles.mkdir()
+
+    notes = profile / constants.NOTES_DIRECTORY_NAME
+    notes.mkdir()
+
+    notes_db = initialized_db(notes / constants.NOTES_DB_FILENAME)
+
+    return {
+        "profile": profile,
+        "notes": notes,
+        "styles": styles,
+        "db": notes_db,
+    }
+
+
+def get_subject(subject, delete_in_db=True, metadata=None):
     """Get a subject if it exists in the database and automatically handles the case if
     the directory is deleted while the subject is found in the database.
 
@@ -91,7 +149,7 @@ def get_subject(subject, delete_in_db=True, db=None):
     :raises NoSubjectFoundError: Raised if the subject is not found in the database.
     :raises DanglingSubjectError: Raised if the subject is found in the database but not found in the filesystem.
     """
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         subject_slug = kebab_case(subject)
 
         notes_cursor.execute("SELECT id, name, datetime_modified FROM subjects WHERE name == :name;",
@@ -101,7 +159,7 @@ def get_subject(subject, delete_in_db=True, db=None):
         if subject_query is None:
             raise exceptions.NoSubjectFoundError(subject)
 
-        subject_value = convert_subject_query_to_dictionary(subject_query)
+        subject_value = convert_subject_query_to_dictionary(subject_query, metadata=metadata)
 
         if subject_value["path"].is_dir() is False:
             if delete_in_db is True:
@@ -112,8 +170,8 @@ def get_subject(subject, delete_in_db=True, db=None):
         return subject_value
 
 
-def get_subject_by_id(id, delete_in_db=True, db=None):
-    with use_db(db) as (notes_cursor, notes_db):
+def get_subject_by_id(id, delete_in_db=True, metadata=None):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         notes_cursor.execute("SELECT id, name, datetime_modified FROM subjects WHERE "
                             "id == :id;", {"id": id})
         
@@ -121,13 +179,13 @@ def get_subject_by_id(id, delete_in_db=True, db=None):
         if subject_query is None:
             raise exceptions.NoSubjectFoundError(id)
         
-        subject_query = convert_subject_query_to_dictionary(subject_query)
+        subject_query = convert_subject_query_to_dictionary(subject_query, metadata=metadata)
         
         if subject_query["path"].is_dir() is False:
             if delete_in_db is True:
                 notes_cursor.execute("DELETE FROM subjects WHERE id == :subject_id;", {"subject_id": subject_query["id"]})
                 notes_db.commit()
-            raise exceptions.DanglingSubjectError(subject_value)
+            raise exceptions.DanglingSubjectError(subject_query["name"])
         
         return subject_query
 
@@ -164,8 +222,9 @@ def get_subjects(*subjects, **kwargs):
     """
 
     db = kwargs.pop("db", None)
+    profile_metadata = kwargs.pop("metadata")
 
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(profile_metadata["db"]) as (notes_cursor, notes_db):
         # this will eventually be the list for subjects that are not found
         subjects_set = deduplicate_list(subjects)
 
@@ -183,7 +242,7 @@ def get_subjects(*subjects, **kwargs):
         dangling_subjects = []
 
         for (index, subject) in enumerate(subjects_query):
-            subject = convert_subject_query_to_dictionary(subject)
+            subject = convert_subject_query_to_dictionary(subject, metadata=profile_metadata)
             subjects_query[index] = subject
 
             # remove the subjects that are found in the set
@@ -211,7 +270,7 @@ def get_subjects(*subjects, **kwargs):
         return subjects_query, subjects_set, dangling_subjects
 
 
-def get_all_subjects(sort_by=None, strict=False, delete_in_db=True, db=None):
+def get_all_subjects(sort_by=None, strict=False, delete_in_db=True, metadata=None):
     """Retrieve all of the subjects from the notes database.
 
     :param sort_by: Lists note in a particular order. Only accepts a limited range of keywords. Such keywords
@@ -236,7 +295,7 @@ def get_all_subjects(sort_by=None, strict=False, delete_in_db=True, db=None):
     :raises DanglingSubjectError: When the function is in strict mode and there are dangling subjects
                                   found in the database.
     """
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         select_all_notes_sql_statement = "SELECT id, name, datetime_modified FROM subjects "
 
         if sort_by == "id":
@@ -253,7 +312,7 @@ def get_all_subjects(sort_by=None, strict=False, delete_in_db=True, db=None):
 
         subjects_query = notes_cursor.fetchall()
         for (index, _subject) in enumerate(subjects_query):
-            subject = convert_subject_query_to_dictionary(_subject)
+            subject = convert_subject_query_to_dictionary(_subject, metadata=metadata)
             subjects_query[index] = subject
 
             if subject["path"].is_dir() is False:
@@ -261,7 +320,7 @@ def get_all_subjects(sort_by=None, strict=False, delete_in_db=True, db=None):
 
                 if delete_in_db is True:
                     notes_cursor.execute("DELETE FROM subjects WHERE id == :subject_id;",
-                                         {"subject_id": subject["subject_id"]})
+                                        {"subject_id": subject["id"]})
                     notes_db.commit()
                 continue
 
@@ -274,7 +333,7 @@ def get_all_subjects(sort_by=None, strict=False, delete_in_db=True, db=None):
         return subjects_query, dangled_subjects
 
 
-def get_subject_note(subject, note, delete_in_db=True, db=None):
+def get_subject_note(subject, note, delete_in_db=True, metadata=None):
     """
     Simply finds the note from the given subject.
     
@@ -303,11 +362,11 @@ def get_subject_note(subject, note, delete_in_db=True, db=None):
     :raises DanglingSubjectNoteError: When the subject is found in the database but the corresponding file is missing.
     """
     try:
-        subject_query = get_subject(subject, delete_in_db=delete_in_db, db=db)
+        subject_query = get_subject(subject, delete_in_db=delete_in_db, metadata=metadata)
     except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
         raise error
 
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         note = note.strip()
 
         note_query_arguments = {"subject_id": subject_query["id"], "title": note}
@@ -330,13 +389,13 @@ def get_subject_note(subject, note, delete_in_db=True, db=None):
         return note_value
 
 
-def get_subject_note_by_id(id, delete_in_db=True, db=None):
+def get_subject_note_by_id(id, delete_in_db=True, metadata=None):
     try:
         int(id)
     except ValueError:
         raise ValueError("Given ID does not convert to an integer.")
     
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         notes_cursor.execute("SELECT id, subject_id, title, datetime_modified FROM notes WHERE "
                             "id == :id;", {"id": id})
         note_query = notes_cursor.fetchone()
@@ -345,7 +404,7 @@ def get_subject_note_by_id(id, delete_in_db=True, db=None):
             raise exceptions.NoSubjectNoteFoundError(None, id)
         
         try:
-            subject_query = get_subject_by_id(note_query["subject_id"], delete_in_db=delete_in_db, db=db)
+            subject_query = get_subject_by_id(note_query["subject_id"], delete_in_db=delete_in_db, metadata=metadata)
         except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
             raise error
 
@@ -360,7 +419,7 @@ def get_subject_note_by_id(id, delete_in_db=True, db=None):
 
         return note_query
 
-def get_all_subject_notes(subject, sort_by=None, strict=False, delete_in_db=True, db=None):
+def get_all_subject_notes(subject, sort_by=None, strict=False, delete_in_db=True, metadata=None):
     """Retrieve all notes under the given subject.
 
     :param subject: The subject to be retrieve all of the notes.
@@ -388,11 +447,11 @@ def get_all_subject_notes(subject, sort_by=None, strict=False, delete_in_db=True
     """
     try:
         subject = subject.strip(" -")
-        subject_query = get_subject(subject, delete_in_db=True, db=db)
+        subject_query = get_subject(subject, delete_in_db=True, metadata=metadata)
     except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
         raise error
 
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         sql_statement = "SELECT id, title, subject_id, datetime_modified FROM notes " \
                         "WHERE subject_id == :subject_id "
 
@@ -429,7 +488,7 @@ def get_all_subject_notes(subject, sort_by=None, strict=False, delete_in_db=True
         return notes_query, dangling_notes
 
 
-def create_subject(subject, db=None):
+def create_subject(subject, metadata=None):
     """Formally adds the given subject into the binder. It will be added into the database and automate
     the creation of the template needed for the subject.
 
@@ -455,7 +514,7 @@ def create_subject(subject, db=None):
     elif regex_match(subject, "^\d+$") is True:
         raise ValueError(f"Given name contains invalid characters")
 
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         subject_slug = kebab_case(subject)
         try:
             notes_cursor.execute("INSERT INTO subjects (name, datetime_modified) VALUES (:name, DATETIME());",
@@ -466,7 +525,7 @@ def create_subject(subject, db=None):
         except sqlite3.Error as error:
             raise error
 
-        subject_folder_path = constants.NOTES_DIRECTORY / subject_slug
+        subject_folder_path = metadata["notes"] / subject_slug
 
         # creating the folder for the subject
         subject_folder_path.mkdir(exist_ok=True)
@@ -477,17 +536,17 @@ def create_subject(subject, db=None):
 
         # creating the symbolic link for the stylesheet directory which should only
         # be two levels up in the root directory
-        stylesheets_symbolic_link_path = subject_folder_path / "stylesheets/"
+        latexmk_symbolic_link_path = subject_folder_path / "latexmkrc"
 
-        if stylesheets_symbolic_link_path.is_file():
-            stylesheets_symbolic_link_path.unlink()
+        if latexmk_symbolic_link_path.is_file():
+            latexmk_symbolic_link_path.unlink()
 
-        symbolic_link_creation_process = create_symbolic_link(constants.STYLE_DIRECTORY, subject_folder_path)
+        symbolic_link_creation_process = create_symbolic_link(metadata["profile"] / "latexmkrc", subject_folder_path, "latexmkrc")
 
-        return get_subject(subject)
+        return get_subject(subject, metadata=metadata)
 
 
-def create_subject_note(subject, note_title, force=False, db=None):
+def create_subject_note(subject, note_title, force=False, metadata=None):
     """Create a subject note in the binder.
 
     :param subject: The subject where the note will belong.
@@ -515,7 +574,7 @@ def create_subject_note(subject, note_title, force=False, db=None):
     """
     # making sure the note doesn't exists before continuing
     try:
-        note = get_subject_note(subject, note_title, delete_in_db=True, db=db)
+        note = get_subject_note(subject, note_title, delete_in_db=True, metadata=metadata)
         raise exceptions.SubjectNoteAlreadyExistError(subject, [note])
     except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
         raise error
@@ -530,7 +589,7 @@ def create_subject_note(subject, note_title, force=False, db=None):
         raise ValueError(subject, note_title)
 
     note_title = note_title.strip()
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         try:
             notes_cursor.execute("INSERT INTO notes (title, subject_id, datetime_modified) VALUES "
                                  "(:title, (SELECT id FROM subjects WHERE name == :subject), "
@@ -539,7 +598,7 @@ def create_subject_note(subject, note_title, force=False, db=None):
         except sqlite3.DatabaseError as error:
             raise error
 
-        subject_query = get_subject(subject, delete_in_db=True, db=db)
+        subject_query = get_subject(subject, delete_in_db=True, metadata=metadata)
 
         note_title_slug = kebab_case(note_title)
         note_title_filepath = subject_query["path"] / (note_title_slug + ".tex")
@@ -560,17 +619,17 @@ def create_subject_note(subject, note_title, force=False, db=None):
                                                                              **custom_config)
                 )
 
-    return get_subject_note(subject, note_title)
+    return get_subject_note(subject, note_title, metadata=metadata)
 
 
-def create_main_note(subject, _preface=None, strict=False, location=constants.NOTES_DIRECTORY,  **kwargs):
+def create_main_note(subject, _preface=None, strict=False, metadata=None,  **kwargs):
     try:
-        subject_query = get_subject(subject)
+        subject_query = get_subject(subject, metadata=metadata)
     except (exceptions.DanglingSubjectError, exceptions.NoSubjectFoundError) as error:
         raise error
 
     try:
-        subject_notes_query = get_all_subject_notes(subject, strict=strict, delete_in_db=True)
+        subject_notes_query = get_all_subject_notes(subject, strict=strict, delete_in_db=True, metadata=metadata)
     except exceptions.DanglingSubjectNoteFoundError as error:
         raise error
 
@@ -609,7 +668,7 @@ def create_main_note(subject, _preface=None, strict=False, location=constants.NO
         value = Template(_value).safe_substitute(__subject__=subject, __date__=today.strftime("%B %d, %Y"))
         custom_config[f"__{key}__"] = value
 
-    main_note_filepath = location / constants.MAIN_SUBJECT_TEX_FILENAME
+    main_note_filepath = subject_query["path"] / constants.MAIN_SUBJECT_TEX_FILENAME
     main_note_filepath.touch(exist_ok=True)
     with main_note_filepath.open(mode="w") as main_note:
         main_note.write(
@@ -638,7 +697,7 @@ def create_subject_graphics(subject, *figures, **kwargs):
             svg_figure.write(constants.DEFAULT_SVG_TEMPLATE)
 
 
-def remove_subject(subject, delete, db=None):
+def remove_subject(subject, delete, metadata=None):
     """Simply removes the subject from the binder.
 
     :param subject: The subject to be removed.
@@ -657,11 +716,11 @@ def remove_subject(subject, delete, db=None):
     """
     try:
         subject = subject.strip(" -")
-        subject_query = get_subject(subject, delete_in_db=True, db=db)
+        subject_query = get_subject(subject, delete_in_db=True, metadata=metadata)
     except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
         raise error
 
-    with use_db(db) as (notes_cursor, notes_db):
+    with use_db(metadata["db"]) as (notes_cursor, notes_db):
         notes_cursor.execute("DELETE FROM subjects WHERE id == :subject_id;",
                          {"subject_id": subject_query["id"]})
 
@@ -671,7 +730,7 @@ def remove_subject(subject, delete, db=None):
     return subject_query
 
 
-def remove_all_subjects(delete=False, db=None):
+def remove_all_subjects(delete=False, metadata=None):
     """Simply removes all subject in the binder.
 
     :param delete: If given true, deletes the subject in disk.
@@ -683,15 +742,15 @@ def remove_all_subjects(delete=False, db=None):
     :return: The data of the subjects being deleted.
     :rtype: int
     """
-    subjects_query = get_all_subjects(db=db)
+    subjects_query = get_all_subjects(metadata=metadata)
 
     for subject in subjects_query[0]:
-        remove_subject(subject["name"], delete=delete, db=db)
+        remove_subject(subject["name"], delete=delete, metadata=metadata)
 
     return subjects_query
 
 
-def remove_subject_note(subject, note, delete_on_disk=False, db=None):
+def remove_subject_note(subject, note, delete_on_disk=False, metadata=None):
     """ Remove a single subject note in the binder.
 
     :param subject: The name of the subject where the note belongs.
@@ -715,7 +774,7 @@ def remove_subject_note(subject, note, delete_on_disk=False, db=None):
     :raises DanglingSubjectNoteError: When the subject is found in the database but the corresponding file is missing.
     """
     try:
-        note_query = get_subject_note(subject, note, delete_in_db=True, db=db)
+        note_query = get_subject_note(subject, note, delete_in_db=True, metadata=metadata)
     except exceptions.Error as error:
         raise error
 
@@ -728,438 +787,19 @@ def remove_subject_note(subject, note, delete_on_disk=False, db=None):
     return note_query
 
 
-def remove_all_subject_notes(subject, delete_on_disk=False, db=None):
-    notes_query = get_all_subject_notes(subject, delete_in_db=True, db=db)
+def remove_all_subject_notes(subject, delete_on_disk=False, metadata=None):
+    notes_query = get_all_subject_notes(subject, delete_in_db=True, metadata=metadata)
 
     for note in notes_query[0]:
-        remove_subject_note(subject, note["title"], delete_on_disk=delete_on_disk, db=db)
+        remove_subject_note(subject, note["title"], delete_on_disk=delete_on_disk, metadata=metadata)
 
     return notes_query
 
 
-def update_subject(subject, new_subject, delete_in_db=True, db=None):
+def update_subject(subject, new_subject, delete_in_db=True, metadata=None):
     pass
 
 
-def update_subject_note(subject, note_title, new_note_title, delete_in_db=True, db=None):
+def update_subject_note(subject, note_title, new_note_title, delete_in_db=True, metadata=None):
     pass
 
-
-def print_to_console_and_log(msg, logging_level=logging.INFO):
-    logging.log(level=logging_level, msg=msg)
-    print(msg)
-
-
-def add_note(note_metalist=None, subject_metalist=None, force=False, strict=False, **kwargs):
-    """Add a subject or a note in the binder.
-
-    :param note_metalist: A list that consists of lists with the subject as the first item and then the notes
-                          as the second item and beyond.
-    :type note_metalist: list[list][str]
-
-    :param subject_metalist: A multidimensional list of subjects to be added.
-    :type subject_metalist: list[list][str]
-
-    :param force: Forces overwrite of notes that has been found to already exist. Turned off by default.
-    :type force: bool
-
-    :param strict: Exits at the first time it encounters an error (like an already existing note or a wrong type of
-                   file for the specified filepath. Turned off by default.
-    :type strict: bool
-    :return: None
-    """
-    db = kwargs.get("db", None)
-
-    if subject_metalist is not None:
-        subject_set = reduce(lambda _set, subject_list: _set | set(subject_list), subject_metalist, set())
-
-        for subject in subject_set:
-            try:
-                create_subject(subject, db=db)
-
-                success_msg = f"Subject '{subject}' added in the binder."
-                print_to_console_and_log(success_msg)
-            except exceptions.SubjectAlreadyExists:
-                print_to_console_and_log(f"Subject '{subject}' already exists.", logging.ERROR)
-            except ValueError:
-                print_to_console_and_log(f"Given subject name '{subject}' is invalid.", logging.ERROR)
-        print()
-
-    if note_metalist is not None:
-        for subject_note_list in note_metalist:
-            subject = subject_note_list[0]
-            notes = subject_note_list[1:]
-
-            print_to_console_and_log(f"Creating notes for subject '{subject}':")
-
-            for note in notes:
-                try:
-                    create_subject_note(subject, note, db=db)
-                    print_to_console_and_log(f"Note '{note}' under subject '{subject}' added in the binder.")
-                except exceptions.NoSubjectFoundError:
-                    print_to_console_and_log(f"Subject '{subject}' is not found in the binder. Moving on...",
-                                             logging.ERROR)
-                    break
-                except exceptions.DanglingSubjectError:
-                    print_to_console_and_log(f"Subject '{subject}' is in the binder but its files are missing. " \
-                                             f"Deleting the subject entry in the binder.", logging.ERROR)
-                    break
-                except exceptions.SubjectNoteAlreadyExistError:
-                    print_to_console_and_log(f"Note with the title '{note}' under subject '{subject}' "
-                                             f"already exists in the binder.", logging.ERROR)
-                except ValueError:
-                    print_to_console_and_log(f"Note title '{note}' is invalid.", logging.ERROR)
-            print()
-
-
-def remove_note(note_metalist=None, subject_metalist=None, delete=False, **kwargs):
-    """Removes a subject or a note from the binder.
-
-    :param note_metalist: A multidimensional list of notes with the subject as the first item and
-                          the title of the notes to be removed as the last.
-    :type note_metalist: list[list]
-
-    :param subject_metalist: A multidimensional list of subjects to be deleted.
-    :type subject_metalist: list[list]
-
-    :param delete: Delete the files on disk.
-    :type delete: bool
-
-    :return: An integer of 0 for success and non-zero for failure.
-    """
-    db = kwargs.get("db", None)
-
-    if delete:
-        print_to_console_and_log("Deleting associated folders/files is enabled.\n")
-
-    if subject_metalist is not None:
-        subject_set = reduce(lambda _set, subject_list: _set | set(subject_list), subject_metalist, set())
-
-        if ":all:" in subject_set:
-            remove_all_subjects(delete, db=db)
-            print_to_console_and_log("All subjects (and its notes) have been removed in the binder.")
-            return
-
-        for subject in subject_set:
-            try:
-                remove_subject(subject, delete, db=db)
-                print_to_console_and_log(f"Subject '{subject}' has been removed from the binder.")
-            except exceptions.NoSubjectFoundError:
-                print_to_console_and_log(f"Subject '{subject}' doesn't exist in the database.", logging.ERROR)
-
-        print()
-
-    if note_metalist is not None:
-        for subject_note_list in note_metalist:
-            subject = subject_note_list[0]
-            notes = subject_note_list[1:]
-
-            print_to_console_and_log(f"Removing notes under subject '{subject}':")
-
-            if ":all:" in notes:
-                try:
-                    remove_all_subject_notes(subject, delete, db=db)
-                    print_to_console_and_log(f"All notes under '{subject}' have been removed from the binder.")
-                except exceptions.NoSubjectFoundError:
-                    print_to_console_and_log(f"Subject '{subject}' is not found in the database. Moving on...",
-                                             logging.ERROR)
-                except exceptions.DanglingSubjectError:
-                    print_to_console_and_log(f"Subject '{subject}' is not found in the filesystem. Moving on...",
-                                             logging.ERROR)
-            else:
-                for note in notes:
-                    try:
-                        remove_subject_note(subject, note, delete_on_disk=delete, db=db)
-                        print_to_console_and_log(f"Note '{note}' under subject '{subject}' has been removed from the"
-                                                 f"binder.")
-                    except exceptions.NoSubjectFoundError:
-                        print_to_console_and_log(f"Subject '{subject}' is not found in the database. Moving on...",
-                                                 logging.ERROR)
-                        break
-                    except exceptions.DanglingSubjectError:
-                        print_to_console_and_log(f"Subject '{subject}' is not found in the filesytem. Moving on...",
-                                                 logging.ERROR)
-                        break
-                    except exceptions.NoSubjectNoteFoundError:
-                        print_to_console_and_log(f"Note with the title '{note}' under subject '{subject}' "
-                                                 f"does not exist in the binder.", logging.ERROR)
-                    except exceptions.DanglingSubjectNoteFoundError:
-                        print_to_console_and_log(f"Note with the title '{note}' under subject '{subject}' has its"
-                                                 f"file missing. Deleting it in the binder.", logging.ERROR)
-            print()
-
-    return 0
-
-
-# this serves as an environment for note compilation
-class TempCompilingDirectory:
-    def __init__(self):
-        """
-        Creates a temporary compilation environment. For now in order to build the compilation environment, the
-        program simply copies the needed directories to the compilation environment.
-
-        The compilation takes place in the temporary directory (constants.TEMP_DIRECTORY) assigned by the
-        user.
-        """
-        # copy every main files to be copied in the temp dir
-        self.temp_dir = constants.TEMP_DIRECTORY.resolve()
-        self.temp_dir.mkdir(exist_ok=True)
-
-        constants.OUTPUT_DIRECTORY.mkdir(exist_ok=True)
-
-        self.subjects = []
-
-    def add_subject(self, subject, *notes):
-        """
-        Adds a subject to be noted within the compilation environment by adding it into the internal subject list and
-        copy the appropriate directory into the temporary folder. It also adds an additional
-
-        :param subject: The subject to be added. Take note that the subject data should contain the results from the
-                        `get_subject()` function.
-        :type subject: dict
-
-        :param notes: A list of notes to be compiled. Take note that the notes data should come from the
-                      `get_subject_notes()` (or similar function)
-
-        :return: It's a void function.
-        :rtype: None
-        """
-        try:
-            subject = get_subject(subject, delete_in_db=True)
-        except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
-            raise error
-
-        # creating the appropriate folder for the subject
-        subject_temp_folder = self.temp_dir / subject["slug"]
-        if subject_temp_folder.is_dir():
-            rmtree(subject_temp_folder)
-        elif subject_temp_folder.is_file():
-            subject_temp_folder.unlink()
-
-        # copying the subject folder into the temporary directory
-        copytree(subject["path"], subject_temp_folder)
-
-        notes = deduplicate_list(notes)
-        try:
-            notes.remove(":main:")
-            main = True
-        except ValueError:
-            main = False
-
-        if ":all:" in notes:
-            notes_query = get_all_subject_notes(subject["name"])[0]
-        else:
-            notes_query = []
-            for note in notes:
-                notes_query.append(get_subject_note(subject["name"], note))
-
-        if main is True:
-            create_main_note(subject["name"], location=subject_temp_folder)
-
-        subject["temp_path"] = subject_temp_folder
-        subject["notes"] = notes_query
-        subject["main"] = main
-        self.subjects.append(subject)
-
-    def compile_notes(self, output_directory=constants.OUTPUT_DIRECTORY):
-        """
-        Simply compiles the notes with the added subject notes.
-
-        :param output_directory: The directory where the files of the notes will be sent.
-        :type output_directory: Path
-
-        :return: Has no return value
-        :rtype: None
-        """
-        owd = getcwd()
-        for subject in self.subjects:
-            subject_output_directory = output_directory / subject['slug']
-
-            print_to_console_and_log(f"Compiling notes under '{subject['name']}'. " \
-                f"Output location is at {subject_output_directory.resolve()}.")
-
-            subject_note_compile_queue = Queue()
-
-            if subject["main"]:
-                chdir(subject["temp_path"].resolve())
-                latex_compilation_process = Popen(["latexmk", constants.MAIN_SUBJECT_TEX_FILENAME, "-shell-escape",
-                                                   "-pdf"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-                latex_compilation_process.communicate()
-                chdir(owd)
-                if latex_compilation_process.returncode is not 0:
-                    print_to_console_and_log(f"Main note of subject '{subject['name']}' has failed to compile.")
-                else:
-                    print_to_console_and_log(f"Main note of subject '{subject['name']}' has been compiled")
-                    copy(subject["temp_path"] / "main.pdf", subject_output_directory)
-
-            chdir(subject["temp_path"].resolve())
-
-            for note in subject["notes"]:
-                latex_compilation_processes = Popen(["latexmk", note["path"].name, "-shell-escape", "-pdf"],
-                                                     stdin=PIPE, stdout=PIPE, stderr=PIPE)
-
-                subject_note_compile_queue.put((latex_compilation_processes, note))
-
-            available_threads = cpu_count()
-
-            for _thread in range(0, available_threads):
-                thread = Thread(target=self._compile, args=(subject, subject_note_compile_queue, output_directory, owd))
-                thread.daemon = True
-                thread.start()
-
-            subject_note_compile_queue.join()
-
-            print()
-
-    def _compile(self, subject, subject_note_compile_queue, output_directory, original_working_directory):
-        """
-        Continuously compile notes from a subject notes task queue where it contains both the note information and the
-        compile command to be executed. Once the task queue is empty, that's where it will break out.
-
-        :param subject: The subject of the note to be compiled.
-        :type subject: dict
-
-        :param subject_note_compile_queue: The task queue.
-        :type subject_note_compile_queue: Queue
-
-        :param output_directory: The output directory where the compiled file(s) will be sent.
-        :type output_directory: Path
-
-        :param original_working_directory: The original working directory of the process. This is needed in order to
-                                           copy the files correctly.
-        :type original_working_directory: Path
-
-        :return: Has no return value.
-        :rtype: None
-        """
-        while True:
-            try:
-                command_metadata = subject_note_compile_queue.get()
-            except queue.Empty:
-                break
-
-            latex_compilation_process = command_metadata[0]
-            note = command_metadata[1]
-
-            logging.info(f"Compilation process of note '{note['title']}' has started...")
-            latex_compilation_process.communicate()
-
-            chdir(original_working_directory)
-            note_output_filepath = output_directory / subject["path"].stem
-            note_output_filepath.mkdir(exist_ok=True)
-
-            subject_note_log_filename = note['path'].stem + ".log"
-            subject_note_log = subject["temp_path"] / subject_note_log_filename
-
-            compiled_pdf_filename = note['path'].stem + ".pdf"
-            compiled_pdf = subject["temp_path"] / compiled_pdf_filename
-
-            if latex_compilation_process.returncode is not 0:
-                logging.error(f"Compilation process of note '{note['title']}' has failed. No PDF has been produced.")
-                print(f"Note '{note['title']}' not being able to compile. Check the resulting log for errors.")
-                compiled_pdf_output = note_output_filepath / compiled_pdf_filename
-                if compiled_pdf_output.exists():
-                    compiled_pdf_output.unlink()
-
-                copy(subject_note_log, note_output_filepath)
-                subject_note_compile_queue.task_done()
-                continue
-
-            compile_success_msg = f"Successfully compiled note '{note['title']}' into PDF."
-            logging.info(compile_success_msg)
-            print(compile_success_msg)
-
-            subject_note_output_log = note_output_filepath / subject_note_log_filename
-            if subject_note_output_log.exists():
-                subject_note_output_log.unlink()
-
-            copy(compiled_pdf, note_output_filepath)
-            subject_note_compile_queue.task_done()
-            continue
-
-    def close(self):
-        rmtree(self.temp_dir)
-
-
-def compile_note(note_metalist, cache=False, **kwargs):
-    temp_compile_dir = TempCompilingDirectory()
-    for subject_note_list in note_metalist:
-        subject = subject_note_list[0]
-        notes = subject_note_list[1:]
-
-        temp_compile_dir.add_subject(subject, *notes)
-
-    temp_compile_dir.compile_notes()
-
-    if cache is False:
-        temp_compile_dir.close()
-
-
-def list_note(subjects, **kwargs):
-    """
-    Simply prints out a list of notes of a subject.
-    :param subjects: A list of string of subjects to be searched for.
-    :type subjects: list[str]
-
-    :return:
-    """
-
-    if ":all:" in subjects:
-        subjects_query = get_all_subjects(sort_by="name")[0]
-    else:
-        subjects_query = []
-        for subject in subjects:
-            subject_query = get_subject(subject)
-
-            if subject_query is None:
-                continue
-
-            subjects_query.append(subject_query)
-
-    if len(subjects_query) == 0:
-        print_to_console_and_log("There's no subjects listed in the database.")
-        return None
-
-    sort_by = kwargs.get("sort", "title")
-    for subject in subjects_query:
-        subject_notes_query = get_all_subject_notes(subject["name"], sort_by=sort_by)[0]
-        note_count = len(subject_notes_query)
-
-        print_to_console_and_log(f"Subject \"{subject['name']}\" has "
-                                 f"{note_count} {'notes' if note_count > 1 else 'note'}.")
-
-        for note in subject_notes_query:
-            logging.info(f"Subject '{subject['name']}': {note['title']}")
-            print(f"  - ({note['id']}) {note['title']}")
-        print()
-
-
-def open_note(note, **kwargs):
-    """Simply opens a single note in the default text editor.
-
-    :param note: A string of integer that represents a note ID.
-    :type note: str
-
-    :param kwargs: Keyword arguments for options.
-    :keyword execute: A command string that serves as a replacement for opening the note, if given any. The title
-                      of the note must be referred with '{note}'.
-
-    :return: An integer of 0 for success and non-zero for failure.
-    :rtype: int
-    """
-    try:
-        note_query = get_subject_note_by_id(note)
-    except exceptions.NoSubjectFoundError as error:
-        print("No subject ")
-
-    note_absolute_filepath = note_query["path"].absolute().__str__()
-
-    execute_cmd = kwargs.pop("execute", None)
-    if execute_cmd is not None:
-        note_editor_instance = run(execute_cmd.format(note=note_absolute_filepath).split())
-    else:
-        note_editor_instance = run([constants.DEFAULT_NOTE_EDITOR, note_absolute_filepath])
-
-    if note_editor_instance.returncode is True:
-        logging.info("Text editor has been opened.")
-        return 0

@@ -1,12 +1,14 @@
 # native packages
 from argparse import ArgumentParser, HelpFormatter
 import logging
+from pathlib import Path
 import sys
 
 # custom packages
 import scripts.constants as constants
-from .helper import initialized_db
-from .manager import add_note, remove_note, compile_note, open_note, list_note
+from .exceptions import ProfileAlreadyExistsError
+from .manager import create_profile, get_profile
+from .interface import add_note, remove_note, compile_note, open_note, list_note
 
 
 # Making between each option to have a newline for easier reading
@@ -21,6 +23,7 @@ def cli(arguments):
                                                  "specifically created for my workflow.",
                                      prog=constants.SHORT_NAME,
                                      formatter_class=BlankLinesHelpFormatter)
+    argument_parser.add_argument("--target", "-t", action="store", help="The notes directory target path.", default=constants.CURRENT_DIRECTORY)
 
     # add the parsers for the subcommands
     subparsers = argument_parser.add_subparsers(title="subcommands", dest=constants.SUBCOMMAND_ATTRIBUTE_NAME,
@@ -71,6 +74,7 @@ def cli(arguments):
                                     metavar=("SUBJECT"), dest=constants.SUBJECT_ATTRIBUTE_NAME,
                                     help="Takes a list of subjects to be removed into the binder database.")
     remove_note_parser.add_argument("--delete", action="store_true", help="Delete the files on disk.")
+
     remove_note_parser.set_defaults(subcmd_func=remove_note, subcmd_parser=remove_note_parser)
 
     # add the subcommand 'compile'
@@ -90,6 +94,7 @@ def cli(arguments):
                                      f"(DEFAULT: {constants.TEMP_DIRECTORY_NAME}) should be kept after compilation "
                                      f"process has completed. This will help out in speeding up compilation time "
                                      f"especially if you're going to compile continuously.")
+
     compile_note_parser.set_defaults(subcmd_func=compile_note, subcmd_parser=compile_note_parser)
 
     # add the subcommand 'open'
@@ -102,6 +107,7 @@ def cli(arguments):
                                   help=f"Replace the default text editor ({constants.DEFAULT_NOTE_EDITOR}) with the "
                                   "given command. You have to indicate the note with \"{note}\" "
                                   "(i.e. \"code {note}\").")
+
     open_note_parser.set_defaults(subcmd_func=open_note, subcmd_parser=open_note_parser)
 
     args = vars(argument_parser.parse_args())
@@ -124,10 +130,15 @@ def cli(arguments):
         logging.basicConfig(filename=constants.SHORT_NAME + ".log", filemode="w", level=logging.INFO,
                             format="%(levelname)s (%(asctime)s):\n%(message)s\n")
         logging.info("Subcommand: {subcmd}".format(subcmd=passed_subcommand))
-        
-        if constants.NOTES_DIRECTORY.exists() is False:
-            constants.NOTES_DIRECTORY.mkdir()
 
-        notes_db = initialized_db()
-        note_function(**args, db=notes_db)
-        notes_db.close()
+        location = Path(args.pop("target", constants.CURRENT_DIRECTORY))
+        profile_directory = location / constants.PROFILE_DIRECTORY_NAME
+        notes_directory = profile_directory / "notes"
+
+        if profile_directory.exists():
+            profile_metadata = get_profile(location)
+        else:
+            profile_metadata = create_profile(location)
+
+        note_function(**args, metadata=profile_metadata)
+        profile_metadata["db"].close()

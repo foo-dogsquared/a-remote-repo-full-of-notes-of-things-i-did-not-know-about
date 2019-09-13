@@ -35,17 +35,18 @@ SHORT_NAME = "personal-lecture-manager"
 
 CURRENT_DIRECTORY = Path("./")
 
-NOTES_DIRECTORY_NAME = "notes"
-NOTES_DIRECTORY = CURRENT_DIRECTORY / NOTES_DIRECTORY_NAME
+PROFILE_DIRECTORY_NAME = "texture-notes-profile"
+PROFILE_DIRECTORY = CURRENT_DIRECTORY / PROFILE_DIRECTORY_NAME
 
-STYLE_DIRECTORY_NAME = "stylesheets/"
-STYLE_DIRECTORY = CURRENT_DIRECTORY / STYLE_DIRECTORY_NAME
+NOTES_DIRECTORY_NAME = "notes"
+
+STYLE_DIRECTORY_NAME = "styles"
 
 OUTPUT_DIRECTORY_NAME = ".output"
-OUTPUT_DIRECTORY = CURRENT_DIRECTORY / OUTPUT_DIRECTORY_NAME
 
 TEMP_DIRECTORY_NAME = ".tmp"
-TEMP_DIRECTORY = CURRENT_DIRECTORY / TEMP_DIRECTORY_NAME
+
+NOTES_DB_FILENAME = "notes.db"
 
 NOTE_ATTRIBUTE_NAME = "note_metalist"
 SUBJECT_ATTRIBUTE_NAME = "subject_metalist"
@@ -63,8 +64,6 @@ INVALID_SUBJECT_NAMES = (":all:", ":except:")
 INVALID_NOTE_TITLES = (":all:", ":main:", ":union:", "stylesheets", "graphics", "readme", "main")
 
 SUBJECT_NAME_REGEX = r"^[\w\d -]+$"
-
-NOTES_DB_FILEPATH = NOTES_DIRECTORY / "notes.db"
 
 NOTES_DB_SQL_SCHEMA = rf"""/*
 One thing to note here is the REGEXP function.
@@ -147,6 +146,8 @@ DEFAULT_LATEX_FILE_EXTENSION = ".tex"
 
 MAIN_SUBJECT_TEX_FILENAME = "main.tex"
 
+DEFAULT_LATEXMKRC_TEMPLATE = """ensure_path( 'TEXINPUTS', '../../styles//' );"""
+
 # Exit codes with their generic message
 EXIT_CODES = {
     "SUCCESS": "Program execution was successful.",
@@ -168,7 +169,7 @@ EXIT_CODES = {
 
 # this is just for backup in case the .default_tex_template is not found
 DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false, oneside, 14pt]{standalone}
-\usepackage{stylesheets/docs-config}
+\usepackage{docs-config}
 
 % document metadata
 \author{${__author__}}
@@ -201,7 +202,7 @@ DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false,
 """
 
 DEFAULT_LATEX_MAIN_FILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false, oneside, 12pt]{standalone}
-\usepackage{stylesheets/docs-config}
+\usepackage{styles/docs-config}
 
 % document metadata
 \author{${__author__}}

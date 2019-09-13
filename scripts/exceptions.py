@@ -2,6 +2,25 @@ class Error(Exception):
     pass
 
 
+# Base exception for profiles
+class ProfileError(Error):
+    def __init__(self, location):
+        super().__init__()
+        self.location = location
+
+
+class ProfileAlreadyExistsError(ProfileError):
+    def __init__(self, location):
+        super().__init__(location)
+        self.message = f"The location \"{location}\" has a profile already."
+
+
+class ProfileDoesNotExistsError(ProfileError):
+    def __init__(self, location):
+        super().__init__(location)
+        self.message = f"The location \"{location}\" has no profile detected."
+
+
 # Base exception for subject-related errors
 class SubjectError(Error):
     def __init__(self, subjects):
