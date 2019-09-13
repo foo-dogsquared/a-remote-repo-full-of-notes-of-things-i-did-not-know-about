@@ -1,6 +1,14 @@
 = Folder structure
 
-Here are the top level directories you give the most amount of attention:
+Here are the top level files and directories of the profile you give the most amount of attention:
+
+== `latexmkrc` 
+
+The root `latexmkrc` to be used for the notes directory. 
+This is used for setting configurations to https://www.ctan.org/pkg/latexmk/[latexmk]. 
+
+You can edit it but make sure that the styles folder is added in the search path. 
+
 
 == `notes/`
 Where the notes is stored, obviously. Inside of this directory are subdirectories of 
@@ -17,22 +25,16 @@ Each subdirectory should have also have the following:
 
 - A directory named `graphics/` where all of the images to be used 
 within the files are stored. 
-- A symbolic link from `stylesheets/` folder.
+- A symbolic link from the root `latexmkrc`. 
 
 You can compile the subject notes individually (provided that your LaTeX files are
 configured correctly).
 
-== `stylesheets/`
-Where my custom LaTeX style (`.sty`) and class (`.cls`) are stored. It got its name 
-since I'm primarily familiar with web dev't and it just makes sense (at least for me).
-Also, it may be referred to as the *stylesheets directory*.
+== `styles/`
+Where my custom LaTeX style (`.sty`) and class (`.cls`) are stored. 
+Also, it may be referred to as the *stylesheets directory*. 
 
-Take note that the LaTeX files from the `notes/` directory does use packages from here 
-but without referring to the relative or absolute directory since every individual
-subjects in the binder has a https://kb.iu.edu/d/abbe[symbolic link] to this folder.
-Hence, every package in here has to be prepended with `stylesheets/` when being
-referred.
+The documents should be able to compile correctly (even manually) with https://mg.readthedocs.io/latexmk.html[latex-mk] since it uses a `latexmkrc` file to add the styles folder into the package search path. 
 
 You can take a look at some of my LaTeX style files to see a template/pattern in case
-you want to add your own. Unfortunately, if you have added some of your own and intended to
-include in every document, don't forget to manually add in the newly package to the
+you want to add your own. 

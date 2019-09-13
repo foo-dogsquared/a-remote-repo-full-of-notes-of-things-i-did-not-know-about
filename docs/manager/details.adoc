@@ -39,10 +39,13 @@ Inside of this repo is your typical stuff like:
 
 * The `scripts/` folder where the notes manager source code is stored.
 
-* The `manager.py` where it serves as the front file for the notes manager
-program.
+* The `manager.py` where it serves as the front file for the notes manager program. 
+You could create a shadow executable file on the `manager.py` to shorten the command. 
 
 * Over time, there is also `personal-lecture-manager.log` file
 in the root directory where it list the happenings of the most recent
 run of the notes manager program. Could be handy for debugging and
 error handling.
+
+* The `texture-notes-profile` where the notes and styles are stored. 
+It's also meant to be portable, easily transferring it between Linux-based systems. 

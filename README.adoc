@@ -10,10 +10,8 @@ Think of this repo as an open-sourced online
 http://calnewport.com/blog/2015/11/25/the-feynman-notebook-method/[Feynman notebook] 
 of someone... or something.
 
-This open study notebook uses LaTeX as the files to be used for my notes
-so you'll have to install a LaTeX distribution to be able to compile it and view 
-the results. I might consider using a CI server to automate that (perhaps) for 
-my (and everyone else's) convenience.
+This open study notebook uses LaTeX as the files to be used for my notes so you'll have to install a LaTeX distribution to be able to compile it and view the results. 
+I might consider using a CI server to automate that (perhaps) for my (and everyone else's) convenience.
 
 include::docs/manager/details.adoc[leveloffset=1]
 
@@ -41,9 +39,8 @@ Yeah... I have that in mind too...
 
 === How?
 
-I take notes... but seriously, most of these notes came from my offline
-notebook, also known as paper notebook. Although, some of them are
-re-edited just to go for another attempt at explaining it.
+I take notes... but seriously, most of these notes came from my offline notebook, also known as paper notebook. 
+Although, some of them are re-edited just to go for another attempt at explaining it.
 
 === Why?
 
