@@ -5,20 +5,39 @@
 \RequirePackage[nocomments]{standalone}
 \RequirePackage{chngcntr}
 \RequirePackage{import}
-\RequirePackage[utf8]{inputenc}
-\RequirePackage{fontawesome}
-\RequirePackage[english]{babel}
-\RequirePackage[rgb]{xcolor}
+
+% Not needed if it's compiled in LuaLaTeX
+% \RequirePackage[utf8]{inputenc}
+
+% Not needed if it's compiled in LuaLaTeX
+% \RequirePackage[english]{babel}
+
+% Babel alternative for XeLaTeX and LuaLaTeX
+\RequirePackage{polyglossia}
+
 \RequirePackage[intlimits]{amsmath}
 \RequirePackage{amssymb}
 \RequirePackage{amsthm}
 \RequirePackage{tikz}
 \RequirePackage{pgfplots}
 \RequirePackage{fancyhdr}
-\RequirePackage{minted}
+\RequirePackage[newfloat]{minted}
+\RequirePackage{caption}
 \RequirePackage[most]{tcolorbox}
 \RequirePackage[colorlinks=true, linkcolor=., anchorcolor=red, urlcolor=blue, menucolor=.]{hyperref}
-\RequirePackage[fullintlimits, fullsumlimits]{kpfonts}
+
+% this is used by LuaLaTeX
+\RequirePackage{luatextra}
+\RequirePackage{luacolor}
+\RequirePackage{fontspec}
+\RequirePackage{fontawesome}
+
+% setting up the fonts for fontspec
+\usepackage{unicode-math}
+\setmainfont{Source Serif Pro}
+\setsansfont{Source Sans Pro}
+\setmathfont{Latin Modern Math}[Scale=1.2]
+\setmonofont{Fira Code}
 
 % this one doesn't have a dependency and it is needed for the subfiles to
 % compile consistently in various situations
@@ -53,5 +72,10 @@
 
 % set chapter spacing for easier reading on digital screen
 \setlength{\beforechapskip}{-\beforechapskip}
+\setlength{\parskip}{1em}
+
+% create a new environment for non-floating code listings
+\newenvironment{code}{\captionsetup{type=listing}}{}
+\SetupFloatingEnvironment{listing}{name=Source Code}
 
 \endinput
