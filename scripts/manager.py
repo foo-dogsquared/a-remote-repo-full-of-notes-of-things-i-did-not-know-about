@@ -102,7 +102,7 @@ def create_profile(location=constants.CURRENT_DIRECTORY):
     """
     location_path = Path(location)
     profile = location_path / constants.PROFILE_DIRECTORY_NAME
-    if profile.exists() is True:
+    if profile.exists() is True or profile.is_symlink() is True:
         raise exceptions.ProfileAlreadyExistsError(location)
 
     profile.mkdir()
@@ -668,7 +668,7 @@ def create_main_note(subject, _preface=None, strict=False, metadata=None,  **kwa
         value = Template(_value).safe_substitute(__subject__=subject, __date__=today.strftime("%B %d, %Y"))
         custom_config[f"__{key}__"] = value
 
-    main_note_filepath = subject_query["path"] / constants.MAIN_SUBJECT_TEX_FILENAME
+    main_note_filepath = subject_query["path"] / f"{constants.MAIN_SUBJECT_TEX_FILENAME}.tex"
     main_note_filepath.touch(exist_ok=True)
     with main_note_filepath.open(mode="w") as main_note:
         main_note.write(

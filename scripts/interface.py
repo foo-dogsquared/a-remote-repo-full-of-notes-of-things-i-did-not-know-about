@@ -179,8 +179,6 @@ class TempCompilingDirectory:
         """
         # copy every main files to be copied in the temp dir
         self.metadata = metadata
-        self.temp_dir = (metadata["profile"] / "temp").resolve()
-        self.temp_dir.mkdir(exist_ok=True)
         self.output_directory = metadata["profile"] / ".output"
 
         self.output_directory.mkdir(exist_ok=True)
@@ -207,16 +205,6 @@ class TempCompilingDirectory:
         except (exceptions.NoSubjectFoundError, exceptions.DanglingSubjectError) as error:
             raise error
 
-        # creating the appropriate folder for the subject
-        subject_temp_folder = self.temp_dir / subject["slug"]
-        if subject_temp_folder.is_dir():
-            rmtree(subject_temp_folder)
-        elif subject_temp_folder.is_file():
-            subject_temp_folder.unlink()
-
-        # copying the subject folder into the temporary directory
-        copytree(subject["path"], subject_temp_folder)
-
         notes = deduplicate_list(notes)
         try:
             notes.remove(":main:")
@@ -232,9 +220,8 @@ class TempCompilingDirectory:
                 notes_query.append(get_subject_note(subject["name"], note))
 
         if main is True:
-            create_main_note(subject["name"], metadata=metadata)
+            create_main_note(subject["name"], metadata=self.metadata)
 
-        subject["temp_path"] = subject_temp_folder
         subject["notes"] = notes_query
         subject["main"] = main
         self.subjects.append(subject)
@@ -259,18 +246,21 @@ class TempCompilingDirectory:
             subject_note_compile_queue = Queue()
 
             if subject["main"]:
-                chdir(subject["temp_path"].resolve())
+                chdir(subject["path"].resolve())
                 latex_compilation_process = Popen(["latexmk", constants.MAIN_SUBJECT_TEX_FILENAME, "-shell-escape",
                                                    "-pdf"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+                latex_cleanup_process = Popen(["latexmk", "-c", constants.MAIN_SUBJECT_TEX_FILENAME], stdin=PIPE, stdout=PIPE, stderr=PIPE)
                 latex_compilation_process.communicate()
+                latex_cleanup_process.communicate()
                 chdir(owd)
                 if latex_compilation_process.returncode is not 0:
                     print_to_console_and_log(f"Main note of subject '{subject['name']}' has failed to compile.")
+                    copy(subject["path"] / "main.log", subject_output_directory)
                 else:
                     print_to_console_and_log(f"Main note of subject '{subject['name']}' has been compiled")
-                    copy(subject["temp_path"] / "main.pdf", subject_output_directory)
+                    copy(subject["path"] / "main.pdf", subject_output_directory)
 
-            chdir(subject["temp_path"].resolve())
+            chdir(subject["path"].resolve())
 
             for note in subject["notes"]:
                 latex_compilation_processes = Popen(["latexmk", note["path"].name, "-shell-escape", "-pdf"],
@@ -322,15 +312,25 @@ class TempCompilingDirectory:
             logging.info(f"Compilation process of note '{note['title']}' has started...")
             latex_compilation_process.communicate()
 
+            compile_cleanup_command = Popen(["latexmk", "-c" , f"{note['path'].name}"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            compile_cleanup_command.communicate()
+            if compile_cleanup_command.returncode is not 0:
+                compile_cleanup_msg = f"Cleanup of '{note['path'].name}' has failed. Please delete it manually (or try the command \"latexmk -c {note['path'].name}\" again.)"
+            else:
+                compile_cleanup_msg = f"Cleanup of '{note['path'].name}' has been successful."
+
+            logging.info(compile_cleanup_msg)
+            print(compile_cleanup_msg)
+
             chdir(original_working_directory)
             note_output_filepath = self.output_directory / subject["path"].stem
             note_output_filepath.mkdir(exist_ok=True)
 
             subject_note_log_filename = note['path'].stem + ".log"
-            subject_note_log = subject["temp_path"] / subject_note_log_filename
+            subject_note_log = subject["path"] / subject_note_log_filename
 
             compiled_pdf_filename = note['path'].stem + ".pdf"
-            compiled_pdf = subject["temp_path"] / compiled_pdf_filename
+            compiled_pdf = subject["path"] / compiled_pdf_filename
 
             if latex_compilation_process.returncode is not 0:
                 logging.error(f"Compilation process of note '{note['title']}' has failed. No PDF has been produced.")
@@ -346,17 +346,15 @@ class TempCompilingDirectory:
             compile_success_msg = f"Successfully compiled note '{note['title']}' into PDF."
             logging.info(compile_success_msg)
             print(compile_success_msg)
-
+            
             subject_note_output_log = note_output_filepath / subject_note_log_filename
             if subject_note_output_log.exists():
                 subject_note_output_log.unlink()
 
             copy(compiled_pdf, note_output_filepath)
+
             subject_note_compile_queue.task_done()
             continue
-
-    def close(self):
-        rmtree(self.temp_dir)
 
 
 def compile_note(note_metalist, cache=False, **kwargs):
@@ -370,9 +368,6 @@ def compile_note(note_metalist, cache=False, **kwargs):
         temp_compile_dir.add_subject(subject, *notes)
 
     temp_compile_dir.compile_notes()
-
-    if cache is False:
-        temp_compile_dir.close()
 
 
 def list_note(subjects, **kwargs):
@@ -430,8 +425,10 @@ def open_note(note, **kwargs):
     :return: An integer of 0 for success and non-zero for failure.
     :rtype: int
     """
+    metadata = kwargs.pop("metadata")
+    
     try:
-        note_query = get_subject_note_by_id(note)
+        note_query = get_subject_note_by_id(note, metadata=metadata)
     except exceptions.NoSubjectFoundError as error:
         print("No subject ")
 

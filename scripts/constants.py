@@ -144,7 +144,7 @@ DEFAULT_LATEX_SUBFILE_DOC_KEY_CONFIG = {}
 
 DEFAULT_LATEX_FILE_EXTENSION = ".tex"
 
-MAIN_SUBJECT_TEX_FILENAME = "main.tex"
+MAIN_SUBJECT_TEX_FILENAME = "main"
 
 DEFAULT_LATEXMKRC_TEMPLATE = """ensure_path( 'TEXINPUTS', '../../styles//' );"""
 
@@ -202,7 +202,7 @@ DEFAULT_LATEX_SUBFILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false,
 """
 
 DEFAULT_LATEX_MAIN_FILE_SOURCE_CODE = r"""\documentclass[class=memoir, crop=false, oneside, 12pt]{standalone}
-\usepackage{styles/docs-config}
+\usepackage{docs-config}
 
 % document metadata
 \author{${__author__}}
