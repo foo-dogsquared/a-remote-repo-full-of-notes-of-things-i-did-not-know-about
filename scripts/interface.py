@@ -438,7 +438,7 @@ def open_note(note, **kwargs):
     if execute_cmd is not None:
         note_editor_instance = run(execute_cmd.format(note=note_absolute_filepath).split())
     else:
-        note_editor_instance = run([constants.DEFAULT_NOTE_EDITOR, note_absolute_filepath])
+        note_editor_instance = run([constants.config["DEFAULT_NOTE_EDITOR"], note_absolute_filepath])
 
     if note_editor_instance.returncode is True:
         logging.info("Text editor has been opened.")

@@ -1,5 +1,6 @@
 # native packages
 from contextlib import contextmanager
+import importlib.util
 import logging
 from re import compile
 import sqlite3
@@ -123,6 +124,14 @@ def substring_search(text, pattern):
 def regex_match(string, pattern):
     regex_pattern = compile(pattern)
     return regex_pattern.search(string) is not None
+
+
+# Taken from https://stackoverflow.com/a/67692
+def import_config(name, location):
+    spec = importlib.util.spec_from_file_location(name, location)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def initialized_db(db_path=constants.CURRENT_DIRECTORY / constants.PROFILE_DIRECTORY_NAME / constants.NOTES_DB_FILENAME):

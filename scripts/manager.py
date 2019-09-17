@@ -110,7 +110,7 @@ def create_profile(location=constants.CURRENT_DIRECTORY):
     latexmkrc_file = profile / "latexmkrc"
     latexmkrc_file.touch()
     with open(latexmkrc_file, "w") as latexmkrc:
-        latexmkrc.write(constants.DEFAULT_LATEXMKRC_TEMPLATE)
+        latexmkrc.write(constants.config["DEFAULT_LATEXMKRC_TEMPLATE"])
 
     styles = profile / constants.STYLE_DIRECTORY_NAME
     styles.mkdir()
@@ -543,6 +543,9 @@ def create_subject(subject, metadata=None):
 
         symbolic_link_creation_process = create_symbolic_link(metadata["profile"] / "latexmkrc", subject_folder_path, "latexmkrc")
 
+        bibfile = subject_folder_path / "ref.bib"
+        bibfile.touch()
+
         return get_subject(subject, metadata=metadata)
 
 
@@ -614,7 +617,7 @@ def create_subject_note(subject, note_title, force=False, metadata=None):
                     custom_config[f"__{config_key}__"] = config_value
 
                 note_file.write(
-                    constants.DEFAULT_LATEX_SUBFILE_TEMPLATE.safe_substitute(__date__=today.strftime("%B %d, %Y"),
+                    constants.config["DEFAULT_LATEX_SUBFILE_TEMPLATE"].safe_substitute(__date__=today.strftime("%B %d, %Y"),
                                                                              __title__=note_title,
                                                                              **custom_config)
                 )
@@ -672,7 +675,7 @@ def create_main_note(subject, _preface=None, strict=False, metadata=None,  **kwa
     main_note_filepath.touch(exist_ok=True)
     with main_note_filepath.open(mode="w") as main_note:
         main_note.write(
-            constants.DEFAULT_LATEX_MAIN_FILE_TEMPLATE.safe_substitute(__date__=today.strftime("%B %d, %Y"),
+            constants.config["DEFAULT_LATEX_MAIN_FILE_TEMPLATE"].safe_substitute(__date__=today.strftime("%B %d, %Y"),
                                                                        __title__=subject,
                                                                        __preface__=preface,
                                                                        __main__=main_content,
@@ -690,11 +693,11 @@ def create_subject_graphics(subject, *figures, **kwargs):
     # creating the figures
     for figure in figures:
         svg_filename = kebab_case(figure)
-        svg_figure_path = subject_query["path"] / constants.FIGURES_DIRECTORY_NAME / (svg_filename + ".svg")
+        svg_figure_path = subject_query["path"] / constants.config["FIGURES_DIRECTORY_NAME"] / (svg_filename + ".svg")
         svg_figure_path.touch(exist_ok=True)
 
         with svg_figure_path.open(mode="w") as svg_figure:
-            svg_figure.write(constants.DEFAULT_SVG_TEMPLATE)
+            svg_figure.write(constants.config["DEFAULT_SVG_TEMPLATE"])
 
 
 def remove_subject(subject, delete, metadata=None):

@@ -7,6 +7,7 @@ import sys
 # custom packages
 import scripts.constants as constants
 from .exceptions import ProfileAlreadyExistsError
+from .helper import import_config
 from .manager import create_profile, get_profile
 from .interface import add_note, remove_note, compile_note, open_note, list_note
 
@@ -24,6 +25,7 @@ def cli(arguments):
                                      prog=constants.SHORT_NAME,
                                      formatter_class=BlankLinesHelpFormatter)
     argument_parser.add_argument("--target", "-t", action="store", help="The notes directory target path.", default=constants.CURRENT_DIRECTORY)
+    argument_parser.add_argument("--config", "-c", action="store", help="The config target path.", default=constants.CURRENT_DIRECTORY / "config.py")
 
     # add the parsers for the subcommands
     subparsers = argument_parser.add_subparsers(title="subcommands", dest=constants.SUBCOMMAND_ATTRIBUTE_NAME,
@@ -104,7 +106,7 @@ def cli(arguments):
                                   help="Takes a note ID of the note to be opened with "
                                        "the default/configured editor. Only accepts one note to be opened.")
     open_note_parser.add_argument("--execute", type=str, metavar=("COMMAND"),
-                                  help=f"Replace the default text editor ({constants.DEFAULT_NOTE_EDITOR}) with the "
+                                  help=f"Replace the default text editor ({constants.config['DEFAULT_NOTE_EDITOR']}) with the "
                                   "given command. You have to indicate the note with \"{note}\" "
                                   "(i.e. \"code {note}\").")
 
@@ -134,6 +136,14 @@ def cli(arguments):
         location = Path(args.pop("target", constants.CURRENT_DIRECTORY))
         profile_directory = location / constants.PROFILE_DIRECTORY_NAME
         notes_directory = profile_directory / "notes"
+
+        config = args.pop("config", None)
+        if config is not None:
+            config = Path(config)
+
+            if config.exists():
+                user_config = import_config("config", config).config
+                constants.config.update(user_config)
 
         if profile_directory.exists():
             profile_metadata = get_profile(location)
