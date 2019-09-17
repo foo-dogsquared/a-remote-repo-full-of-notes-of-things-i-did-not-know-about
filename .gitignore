@@ -14,6 +14,10 @@ dist/*
 *.aux
 *.lof
 
+# BibTeX files
+*.bbl
+*.blg
+
 # Created by https://www.gitignore.io/api/node
 # Edit at https://www.gitignore.io/?templates=node
 
