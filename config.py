@@ -37,6 +37,7 @@ config = {
 \bibliography{ref}
 \end{document}
 """,
+"DEFAULT_LATEX_MAIN_LECTURE_IMPORT_CODE": r"\\part{{{note['title']}}}\n\\inputchilddocument{{{note['slug']}}}\n\n",
 "DEFAULT_LATEX_MAIN_FILE_SOURCE_CODE": r"""\documentclass[class=memoir, crop=false, oneside, 12pt]{standalone}
 \usepackage{docs-config}
 

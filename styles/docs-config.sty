@@ -5,6 +5,7 @@
 \RequirePackage[nocomments]{standalone}
 \RequirePackage{chngcntr}
 \RequirePackage{import}
+\RequirePackage[left=1.15in,right=1.15in]{geometry}
 
 % Not needed if it's compiled in LuaLaTeX
 % \RequirePackage[utf8]{inputenc}
@@ -31,6 +32,8 @@
 \RequirePackage{luacolor}
 \RequirePackage{fontspec}
 \RequirePackage{fontawesome}
+
+\usepgfplotslibrary{fillbetween}
 
 % setting up the fonts for fontspec
 \usepackage{unicode-math}
@@ -70,9 +73,15 @@
 % set chapter style
 \chapterstyle{bianchi}
 
+\theoremstyle{definition}
+
 % set chapter spacing for easier reading on digital screen
 \setlength{\beforechapskip}{-\beforechapskip}
+
+% set the spacing for the page layout
+\setlength{\footskip}{3em}
 \setlength{\parskip}{1em}
+\setlength{\parindent}{0pt}
 
 % create a new environment for non-floating code listings
 \newenvironment{code}{\captionsetup{type=listing}}{}
